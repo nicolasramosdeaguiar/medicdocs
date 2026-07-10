@@ -56,6 +56,10 @@ function DocumentDetail() {
     doc_date: string;
     doctor_name: string;
     doctor_crm: string;
+    requesting_doctor_name: string;
+    requesting_doctor_crm: string;
+    reporting_doctor_name: string;
+    reporting_doctor_crm: string;
     summary: string;
     cid: string;
   } | null>(null);
