@@ -78,6 +78,10 @@ export type Database = {
           low_confidence_fields: string[]
           mime_type: string
           raw_text: string | null
+          reporting_doctor_crm: string | null
+          reporting_doctor_name: string | null
+          requesting_doctor_crm: string | null
+          requesting_doctor_name: string | null
           summary: string | null
           updated_at: string
           user_id: string
@@ -95,6 +99,10 @@ export type Database = {
           low_confidence_fields?: string[]
           mime_type: string
           raw_text?: string | null
+          reporting_doctor_crm?: string | null
+          reporting_doctor_name?: string | null
+          requesting_doctor_crm?: string | null
+          requesting_doctor_name?: string | null
           summary?: string | null
           updated_at?: string
           user_id: string
@@ -112,6 +120,10 @@ export type Database = {
           low_confidence_fields?: string[]
           mime_type?: string
           raw_text?: string | null
+          reporting_doctor_crm?: string | null
+          reporting_doctor_name?: string | null
+          requesting_doctor_crm?: string | null
+          requesting_doctor_name?: string | null
           summary?: string | null
           updated_at?: string
           user_id?: string
