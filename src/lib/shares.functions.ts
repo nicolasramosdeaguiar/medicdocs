@@ -77,7 +77,7 @@ export const viewShare = createServerFn({ method: "POST" })
 
     let docsQuery = supabaseAdmin
       .from("documents")
-      .select("id, doc_type, doc_date, doctor_name, doctor_crm, summary, cid, file_path, mime_type, created_at")
+      .select("id, doc_type, doc_date, doctor_name, doctor_crm, requesting_doctor_name, requesting_doctor_crm, reporting_doctor_name, reporting_doctor_crm, summary, cid, file_path, mime_type, created_at")
       .eq("user_id", share.user_id)
       .order("doc_date", { ascending: false, nullsFirst: false })
       .order("created_at", { ascending: false });

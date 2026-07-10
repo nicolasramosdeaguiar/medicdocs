@@ -22,6 +22,10 @@ export type ExtractionResult = {
   doc_date: string | null;
   doctor_name: string | null;
   doctor_crm: string | null;
+  requesting_doctor_name: string | null;
+  requesting_doctor_crm: string | null;
+  reporting_doctor_name: string | null;
+  reporting_doctor_crm: string | null;
   summary: string;
   cid: string | null;
   raw_text: string;
@@ -30,32 +34,39 @@ export type ExtractionResult = {
   items: ExtractedItem[];
 };
 
+
 const SYSTEM_PROMPT = `Você é um assistente que extrai informações estruturadas de documentos médicos brasileiros (exames laboratoriais, receitas, laudos, encaminhamentos e autorizações). Responda SEMPRE em JSON válido, seguindo o schema pedido. Escreva em português. Se um campo estiver ilegível, incerto ou ausente, retorne null e adicione o caminho do campo em "low_confidence_fields". Se pelo menos um campo importante estiver incerto, defina "confidence" como "review"; caso contrário, "high".`;
 
 const USER_INSTRUCTIONS = `Analise o documento anexado e devolva um JSON com este formato exato:
 {
   "doc_type": "lab_exam" | "prescription" | "report" | "referral" | "authorization" | "other",
   "doc_date": "YYYY-MM-DD" | null,
-  "doctor_name": string | null,
+  "doctor_name": string | null,           // médico principal / assinante do documento
   "doctor_crm": string | null,
-  "summary": string,           // 1 linha, ex: "Hemograma completo" ou "Receita: Dipirona 500mg"
-  "cid": string | null,        // se houver CID mencionado
-  "raw_text": string,          // texto completo extraído (OCR)
+  "requesting_doctor_name": string | null, // médico solicitante (exames, biópsias, laudos). null se não houver.
+  "requesting_doctor_crm": string | null,
+  "reporting_doctor_name": string | null,  // médico que laudou / patologista responsável. null se não houver.
+  "reporting_doctor_crm": string | null,
+  "summary": string,
+  "cid": string | null,
+  "raw_text": string,
   "confidence": "high" | "review",
-  "low_confidence_fields": string[],  // ex: ["doc_date", "items[0].value"]
+  "low_confidence_fields": string[],
   "items": [
-    // Para exames laboratoriais, um item por analito:
     { "kind": "lab", "name": string, "value": string|null, "unit": string|null, "reference_range": string|null }
-    // Para receitas, um item por medicamento:
+    // ou para receitas:
     // { "kind": "med", "name": string, "dosage": string|null, "route": string|null, "notes": string|null }
   ]
 }
 Regras:
-- Sempre inclua "items" (pode ser array vazio para laudos/encaminhamentos).
-- Não invente valores. Prefira null e marque como "review".
+- Para exames laboratoriais, biópsias e laudos: procure explicitamente o "médico solicitante" (quem pediu) e o "médico responsável pelo laudo" / patologista (quem assinou o resultado). Use null quando o campo não aparecer no documento.
+- Para receitas e encaminhamentos, use apenas doctor_name/doctor_crm (médico assinante) e deixe os campos requesting_/reporting_ como null.
+- Sempre inclua "items" (pode ser array vazio).
+- Não invente valores. Prefira null e marque em low_confidence_fields quando incerto.
 - Datas em ISO (YYYY-MM-DD). Se só houver mês/ano, use o primeiro dia do mês.
 - "summary" deve ser curto e útil para uma lista.
 Responda apenas com o JSON, sem texto adicional.`;
+
 
 export async function extractFromDocument(
   fileBase64: string,
@@ -144,6 +155,10 @@ function normalize(p: Partial<ExtractionResult>): ExtractionResult {
     doc_date: normalizeDate(p.doc_date),
     doctor_name: nullish(p.doctor_name),
     doctor_crm: nullish(p.doctor_crm),
+    requesting_doctor_name: nullish(p.requesting_doctor_name),
+    requesting_doctor_crm: nullish(p.requesting_doctor_crm),
+    reporting_doctor_name: nullish(p.reporting_doctor_name),
+    reporting_doctor_crm: nullish(p.reporting_doctor_crm),
     summary: (p.summary ?? "Documento").toString().slice(0, 200),
     cid: nullish(p.cid),
     raw_text: (p.raw_text ?? "").toString().slice(0, 20000),

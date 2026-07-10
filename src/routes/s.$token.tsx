@@ -74,6 +74,22 @@ function SharePage() {
                         {doc.doctor_crm ? ` (CRM ${doc.doctor_crm})` : ""}
                         {doc.cid ? ` · CID ${doc.cid}` : ""}
                       </p>
+                      {(doc.requesting_doctor_name || doc.reporting_doctor_name) && (
+                        <dl className="mt-2 text-sm space-y-0.5">
+                          {doc.requesting_doctor_name && (
+                            <div className="flex gap-2">
+                              <dt className="text-muted-foreground">Solicitante:</dt>
+                              <dd>{doc.requesting_doctor_name}{doc.requesting_doctor_crm ? ` (CRM ${doc.requesting_doctor_crm})` : ""}</dd>
+                            </div>
+                          )}
+                          {doc.reporting_doctor_name && (
+                            <div className="flex gap-2">
+                              <dt className="text-muted-foreground">Laudo:</dt>
+                              <dd>{doc.reporting_doctor_name}{doc.reporting_doctor_crm ? ` (CRM ${doc.reporting_doctor_crm})` : ""}</dd>
+                            </div>
+                          )}
+                        </dl>
+                      )}
                     </div>
                   </div>
 
