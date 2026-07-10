@@ -14,7 +14,169 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      document_items: {
+        Row: {
+          document_id: string
+          dosage: string | null
+          id: string
+          kind: Database["public"]["Enums"]["item_kind"]
+          name: string
+          notes: string | null
+          order_index: number
+          reference_range: string | null
+          route: string | null
+          unit: string | null
+          value: string | null
+        }
+        Insert: {
+          document_id: string
+          dosage?: string | null
+          id?: string
+          kind: Database["public"]["Enums"]["item_kind"]
+          name: string
+          notes?: string | null
+          order_index?: number
+          reference_range?: string | null
+          route?: string | null
+          unit?: string | null
+          value?: string | null
+        }
+        Update: {
+          document_id?: string
+          dosage?: string | null
+          id?: string
+          kind?: Database["public"]["Enums"]["item_kind"]
+          name?: string
+          notes?: string | null
+          order_index?: number
+          reference_range?: string | null
+          route?: string | null
+          unit?: string | null
+          value?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_items_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      documents: {
+        Row: {
+          cid: string | null
+          confidence: Database["public"]["Enums"]["doc_confidence"]
+          created_at: string
+          doc_date: string | null
+          doc_type: Database["public"]["Enums"]["doc_type"]
+          doctor_crm: string | null
+          doctor_name: string | null
+          file_path: string
+          id: string
+          low_confidence_fields: string[]
+          mime_type: string
+          raw_text: string | null
+          summary: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cid?: string | null
+          confidence?: Database["public"]["Enums"]["doc_confidence"]
+          created_at?: string
+          doc_date?: string | null
+          doc_type?: Database["public"]["Enums"]["doc_type"]
+          doctor_crm?: string | null
+          doctor_name?: string | null
+          file_path: string
+          id?: string
+          low_confidence_fields?: string[]
+          mime_type: string
+          raw_text?: string | null
+          summary?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cid?: string | null
+          confidence?: Database["public"]["Enums"]["doc_confidence"]
+          created_at?: string
+          doc_date?: string | null
+          doc_type?: Database["public"]["Enums"]["doc_type"]
+          doctor_crm?: string | null
+          doctor_name?: string | null
+          file_path?: string
+          id?: string
+          low_confidence_fields?: string[]
+          mime_type?: string
+          raw_text?: string | null
+          summary?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          full_name: string | null
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          full_name?: string | null
+          id: string
+        }
+        Update: {
+          created_at?: string
+          full_name?: string | null
+          id?: string
+        }
+        Relationships: []
+      }
+      shares: {
+        Row: {
+          created_at: string
+          document_id: string | null
+          expires_at: string | null
+          id: string
+          revoked_at: string | null
+          scope: Database["public"]["Enums"]["share_scope"]
+          token: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          document_id?: string | null
+          expires_at?: string | null
+          id?: string
+          revoked_at?: string | null
+          scope: Database["public"]["Enums"]["share_scope"]
+          token?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          document_id?: string | null
+          expires_at?: string | null
+          id?: string
+          revoked_at?: string | null
+          scope?: Database["public"]["Enums"]["share_scope"]
+          token?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shares_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +185,16 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      doc_confidence: "high" | "review"
+      doc_type:
+        | "lab_exam"
+        | "prescription"
+        | "report"
+        | "referral"
+        | "authorization"
+        | "other"
+      item_kind: "lab" | "med"
+      share_scope: "all" | "document"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +321,18 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      doc_confidence: ["high", "review"],
+      doc_type: [
+        "lab_exam",
+        "prescription",
+        "report",
+        "referral",
+        "authorization",
+        "other",
+      ],
+      item_kind: ["lab", "med"],
+      share_scope: ["all", "document"],
+    },
   },
 } as const
