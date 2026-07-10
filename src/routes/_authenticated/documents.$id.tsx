@@ -74,6 +74,10 @@ function DocumentDetail() {
       doc_date: d.doc_date ?? "",
       doctor_name: d.doctor_name ?? "",
       doctor_crm: d.doctor_crm ?? "",
+      requesting_doctor_name: d.requesting_doctor_name ?? "",
+      requesting_doctor_crm: d.requesting_doctor_crm ?? "",
+      reporting_doctor_name: d.reporting_doctor_name ?? "",
+      reporting_doctor_crm: d.reporting_doctor_crm ?? "",
       summary: d.summary ?? "",
       cid: d.cid ?? "",
     });
