@@ -80,7 +80,7 @@ function SharePage() {
                   {doc.items.length > 0 && (
                     <div className="mt-4 rounded-lg bg-secondary/50 p-3">
                       <ul className="space-y-1.5 text-sm">
-                        {doc.items.map((it) => (
+                        {doc.items.map((it: any) => (
                           <li key={it.id} className="flex justify-between gap-3">
                             <span className="font-medium">{it.name}</span>
                             <span className="text-muted-foreground text-right">
