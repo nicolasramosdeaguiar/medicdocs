@@ -22,6 +22,10 @@ export type ExtractionResult = {
   doc_date: string | null;
   doctor_name: string | null;
   doctor_crm: string | null;
+  requesting_doctor_name: string | null;
+  requesting_doctor_crm: string | null;
+  reporting_doctor_name: string | null;
+  reporting_doctor_crm: string | null;
   summary: string;
   cid: string | null;
   raw_text: string;
@@ -29,6 +33,7 @@ export type ExtractionResult = {
   low_confidence_fields: string[];
   items: ExtractedItem[];
 };
+
 
 const SYSTEM_PROMPT = `Você é um assistente que extrai informações estruturadas de documentos médicos brasileiros (exames laboratoriais, receitas, laudos, encaminhamentos e autorizações). Responda SEMPRE em JSON válido, seguindo o schema pedido. Escreva em português. Se um campo estiver ilegível, incerto ou ausente, retorne null e adicione o caminho do campo em "low_confidence_fields". Se pelo menos um campo importante estiver incerto, defina "confidence" como "review"; caso contrário, "high".`;
 
