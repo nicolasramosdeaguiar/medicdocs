@@ -56,7 +56,7 @@ function SharePage() {
           <p className="text-muted-foreground">Nenhum documento disponível.</p>
         ) : (
           <ul className="space-y-6">
-            {data.documents.map((doc) => {
+            {data.documents.map((doc: any) => {
               const meta = DOC_META[doc.doc_type as keyof typeof DOC_META];
               const Icon = meta.icon;
               return (
