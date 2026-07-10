@@ -236,14 +236,35 @@ function DocumentDetail() {
             </Field>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Médico" reviewing={low.has("doctor_name")}>
-              <Input value={form.doctor_name} onChange={(e) => setForm({ ...form, doctor_name: e.target.value })} />
-            </Field>
-            <Field label="CRM" reviewing={low.has("doctor_crm")}>
-              <Input value={form.doctor_crm} onChange={(e) => setForm({ ...form, doctor_crm: e.target.value })} />
-            </Field>
-          </div>
+          {(form.doc_type === "lab_exam" || form.doc_type === "report") ? (
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Médico solicitante" reviewing={low.has("requesting_doctor_name")}>
+                  <Input value={form.requesting_doctor_name} onChange={(e) => setForm({ ...form, requesting_doctor_name: e.target.value })} placeholder="Quem pediu o exame" />
+                </Field>
+                <Field label="CRM solicitante" reviewing={low.has("requesting_doctor_crm")}>
+                  <Input value={form.requesting_doctor_crm} onChange={(e) => setForm({ ...form, requesting_doctor_crm: e.target.value })} />
+                </Field>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Médico do laudo" reviewing={low.has("reporting_doctor_name")}>
+                  <Input value={form.reporting_doctor_name} onChange={(e) => setForm({ ...form, reporting_doctor_name: e.target.value })} placeholder="Quem assinou o laudo" />
+                </Field>
+                <Field label="CRM do laudo" reviewing={low.has("reporting_doctor_crm")}>
+                  <Input value={form.reporting_doctor_crm} onChange={(e) => setForm({ ...form, reporting_doctor_crm: e.target.value })} />
+                </Field>
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Médico" reviewing={low.has("doctor_name")}>
+                <Input value={form.doctor_name} onChange={(e) => setForm({ ...form, doctor_name: e.target.value })} />
+              </Field>
+              <Field label="CRM" reviewing={low.has("doctor_crm")}>
+                <Input value={form.doctor_crm} onChange={(e) => setForm({ ...form, doctor_crm: e.target.value })} />
+              </Field>
+            </div>
+          )}
 
           <ItemsEditor items={items} setItems={setItems} defaultKind={kind} low={low} />
 
