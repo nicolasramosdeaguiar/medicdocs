@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DOC_TYPES, DOC_META } from "@/lib/doc-meta";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { AlertCircle, ArrowLeft, Plus, Share2, Trash2, X } from "lucide-react";
+import { AlertCircle, ArrowLeft, Download, ExternalLink, Plus, Share2, Trash2, X } from "lucide-react";
 import { z } from "zod";
 import { ShareDialog } from "@/components/share-dialog";
 
