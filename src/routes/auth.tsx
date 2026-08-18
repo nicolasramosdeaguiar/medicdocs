@@ -141,7 +141,7 @@ function SignUpForm() {
     const parsed = signUpSchema.safeParse(values);
     if (!parsed.success) { toast.error(parsed.error.issues[0].message); return; }
     setLoading(true);
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email: parsed.data.email,
       password: parsed.data.password,
       options: {
@@ -151,9 +151,18 @@ function SignUpForm() {
     });
     setLoading(false);
     if (error) { toast.error(error.message); return; }
+    if (data.user && (data.user.identities?.length ?? 0) === 0) {
+      toast.error("Já existe uma conta com esse email. Use a aba “Entrar” ou “Esqueci minha senha”.");
+      return;
+    }
+    if (!data.session) {
+      toast.success("Conta criada! Confirme seu email pelo link que enviamos para entrar.");
+      return;
+    }
     toast.success("Conta criada! Bem-vindo.");
     navigate({ to: "/timeline", replace: true });
   }
+
 
   return (
     <form onSubmit={onSubmit} className="mt-6 space-y-4">
