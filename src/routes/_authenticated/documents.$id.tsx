@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DOC_TYPES, DOC_META } from "@/lib/doc-meta";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { AlertCircle, ArrowLeft, Plus, Share2, Trash2, X } from "lucide-react";
+import { AlertCircle, ArrowLeft, Download, ExternalLink, Plus, Share2, Trash2, X } from "lucide-react";
 import { z } from "zod";
 import { ShareDialog } from "@/components/share-dialog";
 
@@ -198,20 +198,34 @@ function DocumentDetail() {
       <div className="grid gap-6 md:grid-cols-2">
         <div className="rounded-2xl border border-border bg-card overflow-hidden">
           {data.signedUrl ? (
-            data.document.mime_type === "application/pdf" ? (
-              <object data={data.signedUrl} type="application/pdf" className="w-full h-[70vh]">
-                <a className="p-4 block text-primary" href={data.signedUrl} target="_blank" rel="noreferrer">
-                  Abrir PDF original
-                </a>
-              </object>
-            ) : (
-              // eslint-disable-next-line jsx-a11y/img-redundant-alt
-              <img src={data.signedUrl} alt="Documento original" className="w-full h-auto" />
-            )
+            <>
+              <div className="flex items-center gap-2 border-b border-border p-2">
+                <Button asChild variant="outline" size="sm">
+                  <a href={data.signedUrl} target="_blank" rel="noreferrer">
+                    <ExternalLink className="size-4" /> Abrir original
+                  </a>
+                </Button>
+                <Button asChild variant="ghost" size="sm">
+                  <a href={`${data.signedUrl}${data.signedUrl.includes("?") ? "&" : "?"}download`}>
+                    <Download className="size-4" /> Baixar
+                  </a>
+                </Button>
+              </div>
+              {data.document.mime_type === "application/pdf" ? (
+                <iframe
+                  src={data.signedUrl}
+                  title="PDF original"
+                  className="w-full h-[70vh] bg-muted"
+                />
+              ) : (
+                <img src={data.signedUrl} alt="Documento original" className="w-full h-auto" />
+              )}
+            </>
           ) : (
             <div className="p-8 text-muted-foreground">Arquivo indisponível</div>
           )}
         </div>
+
 
         <div className="space-y-4">
           <Field label="Resumo" reviewing={low.has("summary")}>
