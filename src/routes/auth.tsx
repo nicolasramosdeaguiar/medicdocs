@@ -79,8 +79,32 @@ function SignInForm() {
     setLoading(true);
     const { error } = await supabase.auth.signInWithPassword(parsed.data);
     setLoading(false);
-    if (error) { toast.error(error.message); return; }
+    if (error) {
+      if (error.message.toLowerCase().includes("invalid login credentials")) {
+        toast.error("Email ou senha incorretos. Se você já tinha conta, use “Esqueci minha senha”.");
+      } else if (error.message.toLowerCase().includes("not confirmed")) {
+        toast.error("Confirme seu email pelo link que enviamos antes de entrar.");
+      } else {
+        toast.error(error.message);
+      }
+      return;
+    }
     navigate({ to: "/timeline", replace: true });
+  }
+
+  async function onForgot() {
+    const email = values.email.trim();
+    if (!z.string().email().safeParse(email).success) {
+      toast.error("Digite seu email acima para receber o link de redefinição.");
+      return;
+    }
+    setLoading(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    setLoading(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Enviamos um link para redefinir sua senha.");
   }
 
   return (
@@ -98,9 +122,14 @@ function SignInForm() {
       <Button type="submit" className="w-full h-11" disabled={loading}>
         {loading ? "Entrando…" : "Entrar"}
       </Button>
+      <button type="button" onClick={onForgot} disabled={loading}
+        className="block w-full text-center text-sm text-muted-foreground underline">
+        Esqueci minha senha
+      </button>
     </form>
   );
 }
+
 
 function SignUpForm() {
   const navigate = useNavigate();
