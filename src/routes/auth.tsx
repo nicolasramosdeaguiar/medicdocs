@@ -79,8 +79,32 @@ function SignInForm() {
     setLoading(true);
     const { error } = await supabase.auth.signInWithPassword(parsed.data);
     setLoading(false);
-    if (error) { toast.error(error.message); return; }
+    if (error) {
+      if (error.message.toLowerCase().includes("invalid login credentials")) {
+        toast.error("Email ou senha incorretos. Se você já tinha conta, use “Esqueci minha senha”.");
+      } else if (error.message.toLowerCase().includes("not confirmed")) {
+        toast.error("Confirme seu email pelo link que enviamos antes de entrar.");
+      } else {
+        toast.error(error.message);
+      }
+      return;
+    }
     navigate({ to: "/timeline", replace: true });
+  }
+
+  async function onForgot() {
+    const email = values.email.trim();
+    if (!z.string().email().safeParse(email).success) {
+      toast.error("Digite seu email acima para receber o link de redefinição.");
+      return;
+    }
+    setLoading(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    setLoading(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Enviamos um link para redefinir sua senha.");
   }
 
   return (
@@ -98,9 +122,14 @@ function SignInForm() {
       <Button type="submit" className="w-full h-11" disabled={loading}>
         {loading ? "Entrando…" : "Entrar"}
       </Button>
+      <button type="button" onClick={onForgot} disabled={loading}
+        className="block w-full text-center text-sm text-muted-foreground underline">
+        Esqueci minha senha
+      </button>
     </form>
   );
 }
+
 
 function SignUpForm() {
   const navigate = useNavigate();
@@ -112,7 +141,7 @@ function SignUpForm() {
     const parsed = signUpSchema.safeParse(values);
     if (!parsed.success) { toast.error(parsed.error.issues[0].message); return; }
     setLoading(true);
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email: parsed.data.email,
       password: parsed.data.password,
       options: {
@@ -122,9 +151,18 @@ function SignUpForm() {
     });
     setLoading(false);
     if (error) { toast.error(error.message); return; }
+    if (data.user && (data.user.identities?.length ?? 0) === 0) {
+      toast.error("Já existe uma conta com esse email. Use a aba “Entrar” ou “Esqueci minha senha”.");
+      return;
+    }
+    if (!data.session) {
+      toast.success("Conta criada! Confirme seu email pelo link que enviamos para entrar.");
+      return;
+    }
     toast.success("Conta criada! Bem-vindo.");
     navigate({ to: "/timeline", replace: true });
   }
+
 
   return (
     <form onSubmit={onSubmit} className="mt-6 space-y-4">
