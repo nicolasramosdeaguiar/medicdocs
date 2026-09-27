@@ -79,34 +79,109 @@ const listInput = z.object({
   search: z.string().trim().max(200).optional(),
   category: z.enum(["exames", "receitas", "pedidos", "outros"]).optional(),
 });
+type Category = "exames" | "receitas" | "pedidos" | "outros";
+
+// Aplica o filtro de categoria em qualquer consulta de documentos
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function applyCategory<T extends { in: any; eq: any }>(q: T, category?: Category): T {
+  if (category === "exames") return q.in("doc_type", ["lab_exam", "report"]);
+  if (category === "receitas") return q.eq("doc_type", "prescription");
+  if (category === "pedidos") return q.in("doc_type", ["exam_request", "referral", "authorization"]);
+  if (category === "outros") return q.eq("doc_type", "other");
+  return q;
+}
+
+// Remove acentos, deixa minúsculo e troca pontuação por espaço.
+// "Anátomo-patológico" -> "anatomo patologico"
+function normalizeForSearch(v: string): string {
+  return v
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
 export const listDocuments = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((v: unknown) => listInput.parse(v ?? {}))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    let q = supabase
-      .from("documents")
-      .select("id, doc_type, doc_date, doctor_name, title, summary, confidence, created_at")
-      .eq("user_id", userId)
-      .order("doc_date", { ascending: false, nullsFirst: false })
-      .order("created_at", { ascending: false })
-      .limit(200);
+    const tokens = normalizeForSearch(data.search ?? "").split(" ").filter(Boolean);
 
-    if (data.category === "exames") q = q.in("doc_type", ["lab_exam", "report"]);
-    if (data.category === "receitas") q = q.eq("doc_type", "prescription");
-    if (data.category === "pedidos") q = q.in("doc_type", ["exam_request", "referral", "authorization"]);
-    if (data.category === "outros") q = q.eq("doc_type", "other");
-
-    const s = data.search?.trim();
-    if (s) {
-      const term = `%${s.replace(/[%_]/g, "\\$&")}%`;
-      q = q.or(
-        `title.ilike.${term},summary.ilike.${term},doctor_name.ilike.${term},raw_text.ilike.${term}`,
+    // Sem busca: lista normal
+    if (tokens.length === 0) {
+      const q = applyCategory(
+        supabase
+          .from("documents")
+          .select("id, doc_type, doc_date, doctor_name, title, summary, confidence, created_at")
+          .eq("user_id", userId)
+          .order("doc_date", { ascending: false, nullsFirst: false })
+          .order("created_at", { ascending: false })
+          .limit(200),
+        data.category,
       );
+      const { data: rows, error } = await q;
+      if (error) throw new Error(error.message);
+      return rows ?? [];
     }
-    const { data: rows, error } = await q;
+
+    // Com busca: traz os documentos da categoria e filtra aqui,
+    // ignorando acentos e maiúsculas, em todos os campos relevantes.
+    const q = applyCategory(
+      supabase
+        .from("documents")
+        .select(
+          "id, doc_type, doc_date, doctor_name, title, summary, confidence, created_at, requesting_doctor_name, reporting_doctor_name, cid, raw_text",
+        )
+        .eq("user_id", userId)
+        .order("doc_date", { ascending: false, nullsFirst: false })
+        .order("created_at", { ascending: false })
+        .limit(500),
+      data.category,
+    );
+    const { data: docs, error } = await q;
     if (error) throw new Error(error.message);
-    return rows ?? [];
+    if (!docs || docs.length === 0) return [];
+
+    // Nomes de exames e remédios (a RLS já limita aos documentos do usuário)
+    const { data: items } = await supabase.from("document_items").select("document_id, name").limit(5000);
+    const itemNames = new Map<string, string[]>();
+    for (const it of items ?? []) {
+      const list = itemNames.get(it.document_id) ?? [];
+      list.push(it.name);
+      itemNames.set(it.document_id, list);
+    }
+
+    const matches = docs.filter((d) => {
+      const haystack = normalizeForSearch(
+        [
+          d.title,
+          d.summary,
+          d.doctor_name,
+          d.requesting_doctor_name,
+          d.reporting_doctor_name,
+          d.cid,
+          (itemNames.get(d.id) ?? []).join(" "),
+          d.raw_text,
+        ]
+          .filter(Boolean)
+          .join(" "),
+      );
+      // Todas as palavras digitadas precisam aparecer (em qualquer ordem)
+      return tokens.every((t) => haystack.includes(t));
+    });
+
+    return matches.slice(0, 200).map((d) => ({
+      id: d.id,
+      doc_type: d.doc_type,
+      doc_date: d.doc_date,
+      doctor_name: d.doctor_name,
+      title: d.title,
+      summary: d.summary,
+      confidence: d.confidence,
+      created_at: d.created_at,
+    }));
   });
 
 export const getDocumentCategoryCounts = createServerFn({ method: "GET" })
