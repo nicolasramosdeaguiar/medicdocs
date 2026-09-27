@@ -48,10 +48,16 @@ export const generateCaseSummary = createServerFn({ method: "POST" })
     if (itemsError) throw new Error("Não foi possível ler os itens dos documentos.");
     const notes = notesRes.data;
     const { generateClinicalContent, CASE_MODEL } = await import("./case-summary-ai.server");
+    // Limita o texto bruto de cada documento para não estourar tempo/limite da IA
+    const perDoc = Math.max(4000, Math.floor(160_000 / docs.length));
     const content = verifyCaseContent(await generateClinicalContent({
-      documents: docs.map((doc) => ({ ...doc, items: (items ?? []).filter((item) => item.document_id === doc.id) })),
+      documents: docs.map((doc) => ({
+        ...doc,
+        raw_text: doc.raw_text ? doc.raw_text.slice(0, perDoc) : null,
+        items: (items ?? []).filter((item) => item.document_id === doc.id),
+      })),
       family_notes: notes ? { source: "family", ...notes } : null,
-    }), docs.map((d) => d.id), !!notes && Object.values(notes).some(Boolean));
+    }), docs, !!notes && Object.values(notes).some(Boolean));
     const { error } = await supabase.from("case_summaries").insert({
       user_id: userId, content, source_document_ids: docs.map((d) => d.id), model: CASE_MODEL,
     });
