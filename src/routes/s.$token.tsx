@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { viewShare } from "@/lib/shares.functions";
-import { DOC_META, formatDate } from "@/lib/doc-meta";
+import { DOC_META, docTitle, formatDate, formatPersonName } from "@/lib/doc-meta";
 import { HeartPulse, AlertCircle } from "lucide-react";
 
 export const Route = createFileRoute("/s/$token")({
@@ -8,6 +8,11 @@ export const Route = createFileRoute("/s/$token")({
   head: () => ({
     meta: [
       { title: "Documentos compartilhados — Meddocs" },
+      { name: "description", content: "Visualização segura de documentos de saúde compartilhados pelo paciente." },
+      { property: "og:title", content: "Documentos compartilhados — Meddocs" },
+      { property: "og:description", content: "Visualização segura de documentos de saúde compartilhados pelo paciente." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
       { name: "robots", content: "noindex" },
     ],
   }),
@@ -55,61 +60,25 @@ function SharePage() {
         {data.documents.length === 0 ? (
           <p className="text-muted-foreground">Nenhum documento disponível.</p>
         ) : (
-          <ul className="space-y-6">
+          <ul className="space-y-3">
             {data.documents.map((doc: any) => {
               const meta = DOC_META[doc.doc_type as keyof typeof DOC_META];
               const Icon = meta.icon;
               return (
-                <li key={doc.id} className="rounded-2xl border border-border bg-card p-5">
+                <li key={doc.id} className="rounded-2xl border border-border bg-card p-4">
                   <div className="flex items-start gap-3">
                     <div className={`size-11 rounded-xl ${meta.tint} flex items-center justify-center`}>
                       <Icon className={`size-5 ${meta.color}`} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-xs uppercase tracking-wide text-muted-foreground">{meta.label}</p>
-                      <h2 className="text-lg leading-tight">{doc.summary || "Documento"}</h2>
+                      <h2 className="text-lg leading-tight line-clamp-1">{docTitle(doc.title, doc.summary)}</h2>
                       <p className="text-sm text-muted-foreground mt-0.5">
                         {formatDate(doc.doc_date ?? doc.created_at)}
-                        {doc.doctor_name ? ` · ${doc.doctor_name}` : ""}
-                        {doc.doctor_crm ? ` (CRM ${doc.doctor_crm})` : ""}
-                        {doc.cid ? ` · CID ${doc.cid}` : ""}
+                        {doc.doctor_name ? ` · ${formatPersonName(doc.doctor_name)}` : ""}
                       </p>
-                      {(doc.requesting_doctor_name || doc.reporting_doctor_name) && (
-                        <dl className="mt-2 text-sm space-y-0.5">
-                          {doc.requesting_doctor_name && (
-                            <div className="flex gap-2">
-                              <dt className="text-muted-foreground">Solicitante:</dt>
-                              <dd>{doc.requesting_doctor_name}{doc.requesting_doctor_crm ? ` (CRM ${doc.requesting_doctor_crm})` : ""}</dd>
-                            </div>
-                          )}
-                          {doc.reporting_doctor_name && (
-                            <div className="flex gap-2">
-                              <dt className="text-muted-foreground">Laudo:</dt>
-                              <dd>{doc.reporting_doctor_name}{doc.reporting_doctor_crm ? ` (CRM ${doc.reporting_doctor_crm})` : ""}</dd>
-                            </div>
-                          )}
-                        </dl>
-                      )}
                     </div>
                   </div>
-
-                  {doc.items.length > 0 && (
-                    <div className="mt-4 rounded-lg bg-secondary/50 p-3">
-                      <ul className="space-y-1.5 text-sm">
-                        {doc.items.map((it: any) => (
-                          <li key={it.id} className="flex justify-between gap-3">
-                            <span className="font-medium">{it.name}</span>
-                            <span className="text-muted-foreground text-right">
-                              {it.kind === "med"
-                                ? [it.dosage, it.route].filter(Boolean).join(" · ")
-                                : [it.value, it.unit].filter(Boolean).join(" ") +
-                                  (it.reference_range ? ` (ref: ${it.reference_range})` : "")}
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
 
                   {doc.signed_url && (
                     <div className="mt-4">

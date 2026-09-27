@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { DOC_TYPES, DOC_META } from "@/lib/doc-meta";
+import { DOC_TYPES, DOC_META, docTitle } from "@/lib/doc-meta";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { AlertCircle, ArrowLeft, Download, ExternalLink, Plus, Share2, Trash2, X } from "lucide-react";
@@ -20,7 +20,14 @@ const searchSchema = z.object({ review: z.number().optional() });
 
 export const Route = createFileRoute("/_authenticated/documents/$id")({
   validateSearch: (s) => searchSchema.parse(s),
-  head: () => ({ meta: [{ title: "Documento — Meddocs" }] }),
+  head: () => ({ meta: [
+    { title: "Documento — Meddocs" },
+    { name: "description", content: "Consulte e edite os dados do seu documento de saúde." },
+    { property: "og:title", content: "Documento — Meddocs" },
+    { property: "og:description", content: "Consulte e edite os dados do seu documento de saúde." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary" },
+  ] }),
   component: DocumentDetail,
 });
 
@@ -60,6 +67,7 @@ function DocumentDetail() {
     requesting_doctor_crm: string;
     reporting_doctor_name: string;
     reporting_doctor_crm: string;
+    title: string;
     summary: string;
     cid: string;
   } | null>(null);
@@ -78,6 +86,7 @@ function DocumentDetail() {
       requesting_doctor_crm: d.requesting_doctor_crm ?? "",
       reporting_doctor_name: d.reporting_doctor_name ?? "",
       reporting_doctor_crm: d.reporting_doctor_crm ?? "",
+      title: d.title ?? "",
       summary: d.summary ?? "",
       cid: d.cid ?? "",
     });
@@ -114,6 +123,7 @@ function DocumentDetail() {
             requesting_doctor_crm: form.requesting_doctor_crm || null,
             reporting_doctor_name: form.reporting_doctor_name || null,
             reporting_doctor_crm: form.reporting_doctor_crm || null,
+            title: form.title.trim() || null,
             summary: form.summary,
             cid: form.cid || null,
             confidence: "high",
@@ -191,7 +201,7 @@ function DocumentDetail() {
         </div>
         <div>
           <p className="text-xs uppercase tracking-wide text-muted-foreground">{meta.label}</p>
-          <h1 className="text-xl leading-tight">{form.summary || "Documento"}</h1>
+          <h1 className="text-xl leading-tight">{docTitle(form.title, form.summary)}</h1>
         </div>
       </div>
 
@@ -228,8 +238,21 @@ function DocumentDetail() {
 
 
         <div className="space-y-4">
+          <Field label="Título" reviewing={low.has("title")}>
+            <Input
+              value={form.title}
+              maxLength={60}
+              onChange={(e) => setForm({ ...form, title: e.target.value })}
+              placeholder="Nome do documento ou exame"
+            />
+          </Field>
+
           <Field label="Resumo" reviewing={low.has("summary")}>
-            <Input value={form.summary} onChange={(e) => setForm({ ...form, summary: e.target.value })} />
+            <Textarea
+              value={form.summary}
+              onChange={(e) => setForm({ ...form, summary: e.target.value })}
+              className="min-h-28"
+            />
           </Field>
 
           <Field label="Tipo de documento">
