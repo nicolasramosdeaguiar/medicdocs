@@ -61,7 +61,13 @@ type MedRow = { name: string; dosage: string | null; route: string | null; docum
 function TimelinePage() {
   const { categoria } = Route.useSearch();
   const navigate = useNavigate();
+  const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
+  // Espera a pessoa parar de digitar (300ms) antes de buscar
+  useEffect(() => {
+    const t = setTimeout(() => setSearch(searchInput.trim()), 300);
+    return () => clearTimeout(t);
+  }, [searchInput]);
   const qc = useQueryClient();
   const list = useServerFn(listDocuments);
   const getCounts = useServerFn(getDocumentCategoryCounts);
@@ -73,7 +79,20 @@ function TimelinePage() {
   const [includeSummary, setIncludeSummary] = useState(false);
   const [shareChoiceOpen, setShareChoiceOpen] = useState(false);
   const { data: caseData } = useQuery({ queryKey: ["case-summary"], queryFn: () => getCase() });
-  const regenerate = useMutation({ mutationFn: () => generateCase(), onSuccess: () => { toast.success("Resumo gerado"); void qc.invalidateQueries({ queryKey: ["case-summary"] }); }, onError: (e: Error) => toast.error(e.message) });
+  // Resumo do caso: atualiza sozinho quando não existe ou quando algo mudou.
+  // Tenta uma vez por visita; se falhar, mostra o erro na tela com "Tentar novamente".
+  const regenerate = useMutation({
+    mutationFn: () => generateCase(),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ["case-summary"] }); },
+  });
+  const autoTried = useRef(false);
+  useEffect(() => {
+    if (!caseData || autoTried.current || regenerate.isPending) return;
+    if (caseData.hasDocuments && (!caseData.summary || caseData.stale)) {
+      autoTried.current = true;
+      regenerate.mutate();
+    }
+  }, [caseData, regenerate]);
 
   const { data: dashData } = useQuery({
     queryKey: ["dashboard"],
@@ -83,6 +102,7 @@ function TimelinePage() {
   const { data, isLoading } = useQuery({
     queryKey: ["documents", search, categoria],
     queryFn: () => list({ data: { search: search || undefined, category: categoria } }),
+    placeholderData: (prev) => prev,
   });
 
   const { data: counts } = useQuery({
@@ -139,16 +159,35 @@ function TimelinePage() {
         </Button>
       </div>
 
-      <section className="mb-6 border-y border-border py-5 space-y-2" aria-label="Resumo do caso">
-        <h2 className="text-xl">Resumo do caso</h2>
-        {caseData?.summary ? <>
-          <p className="font-medium">{caseData.summary.content.headline}</p>
-          {caseData.summary.content.current_treatment && <p className="text-sm text-muted-foreground">{caseData.summary.content.current_treatment.text}</p>}
-          <p className="text-xs text-muted-foreground">Gerado em {formatDate(caseData.summary.created_at)}</p>
-          {caseData.stale && <p className="text-sm text-warning-foreground">Há documentos novos</p>}
-          <div className="flex flex-wrap gap-2"><Button size="sm" asChild><Link to="/resumo">Ver resumo completo</Link></Button>{caseData.stale && <Button size="sm" variant="outline" disabled={regenerate.isPending} onClick={() => regenerate.mutate()}>{regenerate.isPending ? "Gerando…" : "Atualizar resumo"}</Button>}</div>
-        </> : <>{caseData?.hasDocuments ? <Button size="sm" disabled={regenerate.isPending} onClick={() => regenerate.mutate()}>{regenerate.isPending ? "Gerando…" : "Gerar resumo do caso"}</Button> : <p className="text-sm text-muted-foreground">Adicione documentos para criar um resumo.</p>}</>}
-      </section>
+      {caseData?.hasDocuments && (
+        <section className="mb-6 rounded-2xl border border-border bg-card p-4 space-y-2" aria-label="Resumo do caso">
+          <div className="flex items-baseline justify-between gap-3">
+            <h2 className="text-lg">Resumo do caso</h2>
+            {caseData.summary && (
+              <Link to="/resumo" className="shrink-0 text-sm font-medium text-primary underline underline-offset-4">Ver mais</Link>
+            )}
+          </div>
+          {caseData.summary ? (
+            <p className="line-clamp-2 text-foreground">
+              {caseData.summary.content.headline}
+              {caseData.summary.content.current_treatment ? ` ${caseData.summary.content.current_treatment.text}` : ""}
+            </p>
+          ) : regenerate.isPending ? (
+            <p className="text-sm text-muted-foreground">Montando o resumo a partir dos seus documentos. Isso pode levar até 1 minuto…</p>
+          ) : null}
+          {caseData.summary && (
+            <p className="text-xs text-muted-foreground">
+              {regenerate.isPending ? "Atualizando com as novidades…" : `Atualizado em ${formatDate(caseData.summary.created_at)}`}
+            </p>
+          )}
+          {regenerate.isError && !regenerate.isPending && (
+            <p className="text-sm text-destructive">
+              Não foi possível atualizar o resumo: {(regenerate.error as Error).message}{" "}
+              <button type="button" className="underline underline-offset-4" onClick={() => regenerate.mutate()}>Tentar novamente</button>
+            </p>
+          )}
+        </section>
+      )}
 
       {hasAnyDocs && (
         <section aria-label="Condições ativas" className="mb-4">
@@ -202,17 +241,17 @@ function TimelinePage() {
         </section>
       )}
 
-      <div className="flex items-center justify-between gap-3 mb-3">
-        <h2 className="text-sm font-medium text-muted-foreground">Documentos</h2>
-        <div className="relative w-48 sm:w-64">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar…"
-            className="pl-9 h-10"
-          />
-        </div>
+      <h2 className="text-sm font-medium text-muted-foreground mb-2">Documentos</h2>
+      <div className="relative mb-3">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" aria-hidden />
+        <Input
+          type="search"
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          placeholder="Buscar exame, médico ou remédio"
+          aria-label="Buscar documentos"
+          className="pl-9 h-11"
+        />
       </div>
 
       <nav aria-label="Filtrar documentos por categoria" className="mb-4 -mx-4 px-4 overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -272,7 +311,9 @@ function TimelinePage() {
                         </span>
                       )}
                     </div>
-                    <p className="mt-0.5 font-medium text-foreground line-clamp-1">{docTitle(doc.title, doc.summary)}</p>
+                    <p className="mt-0.5 font-medium text-foreground line-clamp-1">
+                      <Highlight text={docTitle(doc.title, doc.summary)} query={search} />
+                    </p>
                     <p className="mt-1 text-sm text-muted-foreground">
                       {formatDate(doc.doc_date ?? doc.created_at)}
                       {doc.doctor_name ? ` · ${formatPersonName(doc.doctor_name)}` : ""}
@@ -296,6 +337,55 @@ function TimelinePage() {
         />
       )}
     </AppShell>
+  );
+}
+
+// Destaca no título as palavras buscadas, ignorando acentos e maiúsculas
+function foldForSearch(v: string): string {
+  return v.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+}
+
+function Highlight({ text, query }: { text: string; query: string }) {
+  const tokens = foldForSearch(query).replace(/[^a-z0-9]+/g, " ").trim().split(" ").filter(Boolean);
+  if (tokens.length === 0) return <>{text}</>;
+
+  // Versão "dobrada" do texto, guardando a posição de cada letra no original
+  let folded = "";
+  const map: number[] = [];
+  for (let i = 0; i < text.length; i++) {
+    for (const ch of foldForSearch(text[i])) {
+      folded += /[a-z0-9]/.test(ch) ? ch : " ";
+      map.push(i);
+    }
+  }
+
+  const marked = new Array<boolean>(text.length).fill(false);
+  for (const t of tokens) {
+    let from = 0;
+    for (;;) {
+      const at = folded.indexOf(t, from);
+      if (at === -1) break;
+      for (let k = at; k < at + t.length; k++) marked[map[k]] = true;
+      from = at + t.length;
+    }
+  }
+
+  const parts: { text: string; hit: boolean }[] = [];
+  for (let i = 0; i < text.length; i++) {
+    const last = parts[parts.length - 1];
+    if (last && last.hit === marked[i]) last.text += text[i];
+    else parts.push({ text: text[i], hit: marked[i] });
+  }
+  return (
+    <>
+      {parts.map((p, i) =>
+        p.hit ? (
+          <mark key={i} className="rounded-sm bg-primary/15 text-foreground">{p.text}</mark>
+        ) : (
+          <span key={i}>{p.text}</span>
+        ),
+      )}
+    </>
   );
 }
 
