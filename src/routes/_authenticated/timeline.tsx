@@ -2,30 +2,50 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { listDocuments } from "@/lib/documents.functions";
+import { getDashboard } from "@/lib/dashboard.functions";
 import { createShare } from "@/lib/shares.functions";
 import { AppShell } from "@/components/app-shell";
 import { DOC_META, formatDate } from "@/lib/doc-meta";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Plus, Search, Share2, AlertCircle } from "lucide-react";
-import { useState } from "react";
+import { Plus, Search, Share2, AlertCircle, Pill } from "lucide-react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { ShareDialog } from "@/components/share-dialog";
 
 export const Route = createFileRoute("/_authenticated/timeline")({
   head: () => ({
     meta: [
-      { title: "Sua timeline — Meddocs" },
-      { name: "description", content: "Todos os seus documentos de saúde num só lugar." },
+      { title: "Início — Meddocs" },
+      { name: "description", content: "Resumo da sua saúde e todos os seus documentos num só lugar." },
     ],
   }),
   component: TimelinePage,
 });
 
+type DocRow = {
+  id: string;
+  doc_type: keyof typeof DOC_META;
+  doc_date: string | null;
+  doctor_name: string | null;
+  summary: string | null;
+  confidence: "high" | "review";
+  cid: string | null;
+  created_at: string;
+};
+
+type MedRow = { name: string; dosage: string | null; route: string | null; document_id: string };
+
 function TimelinePage() {
   const [search, setSearch] = useState("");
   const list = useServerFn(listDocuments);
+  const dash = useServerFn(getDashboard);
   const createShareFn = useServerFn(createShare);
+
+  const { data } = useQuery({
+    queryKey: ["dashboard"],
+    queryFn: () => dash(),
+  });
 
   const { data, isLoading } = useQuery({
     queryKey: ["documents", search],
@@ -39,24 +59,108 @@ function TimelinePage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const firstName = data?.fullName ? data.fullName.trim().split(/\s+/)[0] : null;
+
+  // Doenças ativas: CID mais recente por código, vinda dos laudos/exames
+  const diseases = useMemo(() => {
+    const map = new Map<string, { cid: string; summary: string | null; date: string; docId: string }>();
+    for (const doc of (data?.docs ?? []) as DocRow[]) {
+      const cid = doc.cid?.trim();
+      if (!cid) continue;
+      const key = cid.toUpperCase();
+      if (!map.has(key)) {
+        map.set(key, { cid: key, summary: doc.summary, date: doc.doc_date ?? doc.created_at, docId: doc.id });
+      }
+    }
+    return [...map.values()];
+  }, [data]);
+
+  // Medicamentos em uso: das receitas, um cartão por remédio (o mais recente prevalece)
+  const meds = useMemo(() => {
+    const map = new Map<string, MedRow>();
+    for (const med of (data?.meds ?? []) as MedRow[]) {
+      const key = med.name.trim().toLowerCase();
+      if (!key) continue;
+      if (!map.has(key)) map.set(key, { ...med, name: med.name.trim() });
+    }
+    return [...map.values()];
+  }, [data]);
+
+  const hasAnyDocs = (data?.docs?.length ?? 0) > 0;
+
   return (
     <AppShell>
-      <div className="flex items-center justify-between gap-3 mb-4">
-        <h1 className="text-2xl">Sua timeline</h1>
+      <div className="flex items-center justify-between gap-3 mb-5">
+        <h1 className="text-2xl">{firstName ? `Olá, ${firstName}` : "Início"}</h1>
         <Button variant="outline" size="sm" onClick={() => shareAll.mutate(24)} disabled={shareAll.isPending}>
           <Share2 className="size-4" />
           <span className="hidden sm:inline">Compartilhar tudo</span>
         </Button>
       </div>
 
-      <div className="relative mb-6">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-        <Input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Buscar exame, remédio, médico…"
-          className="pl-9 h-11"
-        />
+      {hasAnyDocs && (
+        <section aria-label="Condições ativas" className="mb-4">
+          <h2 className="text-sm font-medium text-muted-foreground mb-2">Condições ativas</h2>
+          {diseases.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Nenhum diagnóstico (CID) identificado nos seus documentos ainda.</p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {diseases.map((d) => (
+                <Link
+                  key={d.cid}
+                  to="/documents/$id"
+                  params={{ id: d.docId }}
+                  className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5 text-sm transition-colors hover:border-primary/40 hover:bg-secondary/40"
+                >
+                  <span className="font-medium text-foreground">{d.cid}</span>
+                  {d.summary && (
+                    <span className="text-muted-foreground line-clamp-1 max-w-44 sm:max-w-56">{d.summary}</span>
+                  )}
+                </Link>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
+      {meds.length > 0 && (
+        <section aria-label="Medicamentos em uso" className="mb-6">
+          <h2 className="text-sm font-medium text-muted-foreground mb-2">Medicamentos em uso</h2>
+          <ul className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {meds.map((med) => (
+              <li key={med.name}>
+                <Link
+                  to="/documents/$id"
+                  params={{ id: med.document_id }}
+                  className="flex gap-3 items-center rounded-2xl border border-border bg-card p-3 transition-colors hover:border-primary/40 hover:bg-secondary/40"
+                >
+                  <div className="shrink-0 size-9 rounded-lg bg-doc-prescription/12 flex items-center justify-center">
+                    <Pill className="size-4 text-doc-prescription" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-medium text-foreground line-clamp-1">{med.name}</p>
+                    <p className="text-sm text-muted-foreground line-clamp-1">
+                      {[med.dosage, med.route].filter(Boolean).join(" · ") || "Ver receita"}
+                    </p>
+                  </div>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <div className="flex items-center justify-between gap-3 mb-3">
+        <h2 className="text-sm font-medium text-muted-foreground">Documentos</h2>
+        <div className="relative w-48 sm:w-64">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar…"
+            className="pl-9 h-10"
+          />
+        </div>
       </div>
 
       {isLoading ? (
