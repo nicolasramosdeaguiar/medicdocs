@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { DOC_TYPES, DOC_META } from "@/lib/doc-meta";
+import { DOC_TYPES, DOC_META, docTitle, formatPersonName } from "@/lib/doc-meta";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { AlertCircle, ArrowLeft, Download, ExternalLink, Plus, Share2, Trash2, X } from "lucide-react";
@@ -20,7 +20,14 @@ const searchSchema = z.object({ review: z.number().optional() });
 
 export const Route = createFileRoute("/_authenticated/documents/$id")({
   validateSearch: (s) => searchSchema.parse(s),
-  head: () => ({ meta: [{ title: "Documento — Meddocs" }] }),
+  head: () => ({ meta: [
+    { title: "Documento — Meddocs" },
+    { name: "description", content: "Consulte e edite os dados do seu documento de saúde." },
+    { property: "og:title", content: "Documento — Meddocs" },
+    { property: "og:description", content: "Consulte e edite os dados do seu documento de saúde." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary" },
+  ] }),
   component: DocumentDetail,
 });
 
@@ -60,6 +67,7 @@ function DocumentDetail() {
     requesting_doctor_crm: string;
     reporting_doctor_name: string;
     reporting_doctor_crm: string;
+    title: string;
     summary: string;
     cid: string;
   } | null>(null);
@@ -78,6 +86,7 @@ function DocumentDetail() {
       requesting_doctor_crm: d.requesting_doctor_crm ?? "",
       reporting_doctor_name: d.reporting_doctor_name ?? "",
       reporting_doctor_crm: d.reporting_doctor_crm ?? "",
+      title: d.title ?? "",
       summary: d.summary ?? "",
       cid: d.cid ?? "",
     });
@@ -114,6 +123,7 @@ function DocumentDetail() {
             requesting_doctor_crm: form.requesting_doctor_crm || null,
             reporting_doctor_name: form.reporting_doctor_name || null,
             reporting_doctor_crm: form.reporting_doctor_crm || null,
+            title: form.title.trim() || null,
             summary: form.summary,
             cid: form.cid || null,
             confidence: "high",
@@ -185,13 +195,26 @@ function DocumentDetail() {
         </div>
       )}
 
-      <div className="flex items-center gap-3 mb-6">
+      <div className="flex items-start gap-3 mb-6">
         <div className={`size-11 rounded-xl ${meta.tint} flex items-center justify-center`}>
           <Icon className={`size-5 ${meta.color}`} />
         </div>
-        <div>
+        <div className="min-w-0 flex-1 space-y-3">
           <p className="text-xs uppercase tracking-wide text-muted-foreground">{meta.label}</p>
-          <h1 className="text-xl leading-tight">{form.summary || "Documento"}</h1>
+          <Input
+            aria-label="Título do documento"
+            value={form.title}
+            maxLength={60}
+            onChange={(e) => setForm({ ...form, title: e.target.value })}
+            placeholder={docTitle(null, form.summary)}
+            className="h-auto border-0 bg-transparent p-0 text-xl font-serif leading-tight shadow-none focus-visible:ring-0"
+          />
+          <Textarea
+            aria-label="Resumo do documento"
+            value={form.summary}
+            onChange={(e) => setForm({ ...form, summary: e.target.value })}
+            className="min-h-24 resize-y"
+          />
         </div>
       </div>
 
@@ -228,10 +251,6 @@ function DocumentDetail() {
 
 
         <div className="space-y-4">
-          <Field label="Resumo" reviewing={low.has("summary")}>
-            <Input value={form.summary} onChange={(e) => setForm({ ...form, summary: e.target.value })} />
-          </Field>
-
           <Field label="Tipo de documento">
             <Select value={form.doc_type} onValueChange={(v) => setForm({ ...form, doc_type: v as typeof form.doc_type })}>
               <SelectTrigger><SelectValue /></SelectTrigger>
@@ -254,7 +273,7 @@ function DocumentDetail() {
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <Field label="Médico solicitante" reviewing={low.has("requesting_doctor_name")}>
-                  <Input value={form.requesting_doctor_name} onChange={(e) => setForm({ ...form, requesting_doctor_name: e.target.value })} placeholder="Quem pediu o exame" />
+                  <Input value={formatPersonName(form.requesting_doctor_name)} onChange={(e) => setForm({ ...form, requesting_doctor_name: e.target.value })} placeholder="Quem pediu o exame" />
                 </Field>
                 <Field label="CRM solicitante" reviewing={low.has("requesting_doctor_crm")}>
                   <Input value={form.requesting_doctor_crm} onChange={(e) => setForm({ ...form, requesting_doctor_crm: e.target.value })} />
@@ -262,7 +281,7 @@ function DocumentDetail() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <Field label="Médico do laudo" reviewing={low.has("reporting_doctor_name")}>
-                  <Input value={form.reporting_doctor_name} onChange={(e) => setForm({ ...form, reporting_doctor_name: e.target.value })} placeholder="Quem assinou o laudo" />
+                  <Input value={formatPersonName(form.reporting_doctor_name)} onChange={(e) => setForm({ ...form, reporting_doctor_name: e.target.value })} placeholder="Quem assinou o laudo" />
                 </Field>
                 <Field label="CRM do laudo" reviewing={low.has("reporting_doctor_crm")}>
                   <Input value={form.reporting_doctor_crm} onChange={(e) => setForm({ ...form, reporting_doctor_crm: e.target.value })} />
@@ -272,7 +291,7 @@ function DocumentDetail() {
           ) : (
             <div className="grid grid-cols-2 gap-3">
               <Field label="Médico" reviewing={low.has("doctor_name")}>
-                <Input value={form.doctor_name} onChange={(e) => setForm({ ...form, doctor_name: e.target.value })} />
+                <Input value={formatPersonName(form.doctor_name)} onChange={(e) => setForm({ ...form, doctor_name: e.target.value })} />
               </Field>
               <Field label="CRM" reviewing={low.has("doctor_crm")}>
                 <Input value={form.doctor_crm} onChange={(e) => setForm({ ...form, doctor_crm: e.target.value })} />

@@ -1,15 +1,15 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { listDocuments } from "@/lib/documents.functions";
+import { backfillTitles, listDocuments } from "@/lib/documents.functions";
 import { getDashboard } from "@/lib/dashboard.functions";
 import { createShare } from "@/lib/shares.functions";
 import { AppShell } from "@/components/app-shell";
-import { DOC_META, formatDate } from "@/lib/doc-meta";
+import { DOC_META, docTitle, formatDate, formatPersonName } from "@/lib/doc-meta";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Plus, Search, Share2, AlertCircle, Pill } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { ShareDialog } from "@/components/share-dialog";
 
@@ -18,6 +18,10 @@ export const Route = createFileRoute("/_authenticated/timeline")({
     meta: [
       { title: "Início — Meddocs" },
       { name: "description", content: "Resumo da sua saúde e todos os seus documentos num só lugar." },
+      { property: "og:title", content: "Início — Meddocs" },
+      { property: "og:description", content: "Resumo da sua saúde e todos os seus documentos num só lugar." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: TimelinePage,
@@ -28,6 +32,7 @@ type DocRow = {
   doc_type: keyof typeof DOC_META;
   doc_date: string | null;
   doctor_name: string | null;
+  title: string | null;
   summary: string | null;
   confidence: "high" | "review";
   cid: string | null;
@@ -38,8 +43,10 @@ type MedRow = { name: string; dosage: string | null; route: string | null; docum
 
 function TimelinePage() {
   const [search, setSearch] = useState("");
+  const qc = useQueryClient();
   const list = useServerFn(listDocuments);
   const dash = useServerFn(getDashboard);
+  const backfill = useServerFn(backfillTitles);
   const createShareFn = useServerFn(createShare);
 
   const { data: dashData } = useQuery({
@@ -51,6 +58,15 @@ function TimelinePage() {
     queryKey: ["documents", search],
     queryFn: () => list({ data: { search: search || undefined } }),
   });
+
+  const backfillStarted = useRef(false);
+  useEffect(() => {
+    if (backfillStarted.current || !data?.some((doc) => !doc.title)) return;
+    backfillStarted.current = true;
+    void backfill().then(() => {
+      void qc.invalidateQueries({ queryKey: ["documents"] });
+    });
+  }, [backfill, data, qc]);
 
   const [shareState, setShareState] = useState<{ open: boolean; token?: string; expiresAt?: string | null }>({ open: false });
   const shareAll = useMutation({
@@ -195,10 +211,10 @@ function TimelinePage() {
                         </span>
                       )}
                     </div>
-                    <p className="mt-0.5 font-medium text-foreground line-clamp-2">{doc.summary || "Documento"}</p>
+                    <p className="mt-0.5 font-medium text-foreground line-clamp-1">{docTitle(doc.title, doc.summary)}</p>
                     <p className="mt-1 text-sm text-muted-foreground">
                       {formatDate(doc.doc_date ?? doc.created_at)}
-                      {doc.doctor_name ? ` · ${doc.doctor_name}` : ""}
+                      {doc.doctor_name ? ` · ${formatPersonName(doc.doctor_name)}` : ""}
                     </p>
                   </div>
                 </Link>

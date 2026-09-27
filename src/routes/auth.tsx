@@ -28,6 +28,10 @@ export const Route = createFileRoute("/auth")({
         content:
           "Exames, laudos, receitas e encaminhamentos organizados num só lugar, prontos para mostrar ao médico.",
       },
+      { property: "og:title", content: "Entrar — Meddocs" },
+      { property: "og:description", content: "Acesse seus documentos de saúde organizados em um só lugar." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: AuthPage,

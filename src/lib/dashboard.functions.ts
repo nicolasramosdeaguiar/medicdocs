@@ -11,7 +11,7 @@ export const getDashboard = createServerFn({ method: "GET" })
       supabase
         .from("documents")
         .select(
-          "id, doc_type, doc_date, doctor_name, summary, confidence, cid, created_at",
+          "id, doc_type, doc_date, doctor_name, title, summary, confidence, cid, created_at",
         )
         .eq("user_id", userId)
         .order("doc_date", { ascending: false, nullsFirst: false })

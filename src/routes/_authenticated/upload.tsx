@@ -8,7 +8,14 @@ import { useServerFn } from "@tanstack/react-start";
 import { uploadAndExtract } from "@/lib/documents.functions";
 
 export const Route = createFileRoute("/_authenticated/upload")({
-  head: () => ({ meta: [{ title: "Adicionar documento — Meddocs" }] }),
+  head: () => ({ meta: [
+    { title: "Adicionar documento — Meddocs" },
+    { name: "description", content: "Envie uma foto ou PDF para organizar seus dados de saúde." },
+    { property: "og:title", content: "Adicionar documento — Meddocs" },
+    { property: "og:description", content: "Envie uma foto ou PDF para organizar seus dados de saúde." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary" },
+  ] }),
   component: UploadPage,
 });
 
