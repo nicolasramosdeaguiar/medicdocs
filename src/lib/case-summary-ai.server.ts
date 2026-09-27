@@ -14,7 +14,7 @@ Responda APENAS um objeto JSON com headline, headline_sources, diagnosis, stagin
 // Chama a IA do mesmo jeito que a extração de documentos (que já funciona):
 // resposta obrigatoriamente em JSON e com espaço de sobra para não cortar no meio.
 export async function generateClinicalContent(input: unknown): Promise<CaseContent> {
-  const key = process.env["LOVABLE_API_KEY"];
+  const key = process.env.LOVABLE_API_KEY;
   if (!key) throw new Error("Serviço de IA não configurado.");
 
   const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
