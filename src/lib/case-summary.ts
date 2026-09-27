@@ -1,20 +1,28 @@
 import { z } from "zod";
 
-// Validação tolerante: campos ausentes viram null/lista vazia em vez de descartar o resumo todo
-const sources = z.array(z.string()).optional().default([]);
-const optText = z.string().nullable().optional().default(null);
-const sourced = z.object({ text: z.string(), sources });
+// Validação tolerante: campo ausente ou com tipo errado vira vazio em vez de descartar o resumo todo.
+// Itens que ficarem sem texto ou sem fonte são removidos depois, em verifyCaseContent.
+const sources = z.preprocess(
+  (v) => (typeof v === "string" ? [v] : Array.isArray(v) ? v.filter((x) => typeof x === "string") : []),
+  z.array(z.string()),
+);
+const optText = z.preprocess((v) => (typeof v === "string" && v.trim() ? v : null), z.string().nullable());
+const reqText = z.preprocess((v) => (typeof v === "string" ? v : ""), z.string());
+const list = <T extends z.ZodTypeAny>(item: T) =>
+  z.preprocess((v) => (Array.isArray(v) ? v.filter((x) => x && typeof x === "object") : []), z.array(item));
+const sourced = z.object({ text: reqText, sources });
+const maybeSourced = z.preprocess((v) => (v && typeof v === "object" ? v : null), sourced.nullable());
 export const caseContentSchema = z.object({
-  headline: z.string().optional().default(""),
+  headline: reqText,
   headline_sources: sources,
-  diagnosis: z.array(sourced.extend({ cid: optText, cid_is_suggested: z.boolean().optional().default(false), date: optText })).optional().default([]),
-  staging: sourced.nullable().optional().default(null),
-  timeline: z.array(z.object({ date: optText, event: z.string(), sources })).optional().default([]),
-  current_treatment: sourced.nullable().optional().default(null),
-  medications: z.array(z.object({ name: z.string(), dosage: optText, sources })).optional().default([]),
-  recent_labs: z.array(z.object({ date: optText, highlights: z.string(), sources })).optional().default([]),
-  care_team: z.array(z.object({ name: z.string(), role: z.string().optional().default(""), sources })).optional().default([]),
-  not_found: z.array(z.string()).optional().default([]),
+  diagnosis: list(sourced.extend({ cid: optText, cid_is_suggested: z.preprocess((v) => v === true || v === "true", z.boolean()), date: optText })),
+  staging: maybeSourced,
+  timeline: list(z.object({ date: optText, event: reqText, sources })),
+  current_treatment: maybeSourced,
+  medications: list(z.object({ name: reqText, dosage: optText, sources })),
+  recent_labs: list(z.object({ date: optText, highlights: reqText, sources })),
+  care_team: list(z.object({ name: reqText, role: reqText, sources })),
+  not_found: z.preprocess((v) => (Array.isArray(v) ? v.filter((x) => typeof x === "string") : []), z.array(z.string())),
 });
 export type CaseContent = z.infer<typeof caseContentSchema>;
 
@@ -40,12 +48,14 @@ export function verifyCaseContent(content: CaseContent, docs: SourceDoc[], hasNo
   const byId = new Map(docs.map((d) => [d.id, d]));
   const clean = (list: string[]) =>
     [...new Set(list)].filter((s) => (s === "family" ? hasNotes : byId.has(s)));
-  const keep = <T extends { sources: string[] }>(items: T[]) =>
-    items.map((it) => ({ ...it, sources: clean(it.sources) })).filter((it) => it.sources.length > 0);
-  const keepOne = <T extends { sources: string[] }>(item: T | null) => {
+  const keep = <T extends { sources: string[] }>(items: T[], textOf: (it: T) => string) =>
+    items
+      .map((it) => ({ ...it, sources: clean(it.sources) }))
+      .filter((it) => it.sources.length > 0 && textOf(it).trim().length > 0);
+  const keepOne = <T extends { sources: string[]; text: string }>(item: T | null) => {
     if (!item) return null;
     const s = clean(item.sources);
-    return s.length ? { ...item, sources: s } : null;
+    return s.length && item.text.trim() ? { ...item, sources: s } : null;
   };
   const cidWritten = (cid: string, srcs: string[]) => {
     const norm = cid.replace(/[\s.]/g, "").toUpperCase();
@@ -56,7 +66,7 @@ export function verifyCaseContent(content: CaseContent, docs: SourceDoc[], hasNo
     });
   };
 
-  const diagnosis = keep(content.diagnosis).map((d) =>
+  const diagnosis = keep(content.diagnosis, (d) => d.text).map((d) =>
     d.cid && !cidWritten(d.cid, d.sources) ? { ...d, cid: null, cid_is_suggested: true } : d,
   );
 
@@ -65,11 +75,11 @@ export function verifyCaseContent(content: CaseContent, docs: SourceDoc[], hasNo
     headline_sources: clean(content.headline_sources),
     diagnosis,
     staging: keepOne(content.staging),
-    timeline: keep(content.timeline),
+    timeline: keep(content.timeline, (t) => t.event),
     current_treatment: keepOne(content.current_treatment),
-    medications: keep(content.medications),
-    recent_labs: keep(content.recent_labs),
-    care_team: keep(content.care_team),
+    medications: keep(content.medications, (m) => m.name),
+    recent_labs: keep(content.recent_labs, (l) => l.highlights),
+    care_team: keep(content.care_team, (c) => c.name),
   };
   if (!result.headline.trim() && !result.diagnosis.length && !result.timeline.length) {
     throw new Error("A IA não conseguiu montar o resumo com base nos documentos. Tente novamente.");
