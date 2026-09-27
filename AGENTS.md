@@ -10,3 +10,4 @@
 <!-- LOVABLE:END -->
 
 - Generate missing document titles lazily per authenticated owner and persist each result, so legacy records use AI only once.
+- Keep timeline category selection in the URL and carry it through document detail links so returning restores the same document group.

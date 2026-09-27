@@ -75,7 +75,10 @@ export const uploadAndExtract = createServerFn({ method: "POST" })
     return { id: doc.id as string };
   });
 
-const listInput = z.object({ search: z.string().trim().max(200).optional() });
+const listInput = z.object({
+  search: z.string().trim().max(200).optional(),
+  category: z.enum(["exames", "receitas", "pedidos", "outros"]).optional(),
+});
 export const listDocuments = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((v: unknown) => listInput.parse(v ?? {}))
@@ -89,6 +92,11 @@ export const listDocuments = createServerFn({ method: "POST" })
       .order("created_at", { ascending: false })
       .limit(200);
 
+    if (data.category === "exames") q = q.in("doc_type", ["lab_exam", "report"]);
+    if (data.category === "receitas") q = q.eq("doc_type", "prescription");
+    if (data.category === "pedidos") q = q.in("doc_type", ["exam_request", "referral", "authorization"]);
+    if (data.category === "outros") q = q.eq("doc_type", "other");
+
     const s = data.search?.trim();
     if (s) {
       const term = `%${s.replace(/[%_]/g, "\\$&")}%`;
@@ -99,6 +107,26 @@ export const listDocuments = createServerFn({ method: "POST" })
     const { data: rows, error } = await q;
     if (error) throw new Error(error.message);
     return rows ?? [];
+  });
+
+export const getDocumentCategoryCounts = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const types = ["lab_exam", "report", "prescription", "exam_request", "referral", "authorization", "other"] as const;
+    const results = await Promise.all(types.map((type) =>
+      context.supabase.from("documents").select("id", { count: "exact", head: true })
+        .eq("user_id", context.userId).eq("doc_type", type),
+    ));
+    const error = results.find((result) => result.error)?.error;
+    if (error) throw new Error(error.message);
+    const counts = Object.fromEntries(types.map((type, index) => [type, results[index]?.count ?? 0]));
+    return {
+      todos: Object.values(counts).reduce((sum, count) => sum + count, 0),
+      exames: counts.lab_exam + counts.report,
+      receitas: counts.prescription,
+      pedidos: counts.exam_request + counts.referral + counts.authorization,
+      outros: counts.other,
+    };
   });
 
 const idInput = z.object({ id: z.string().uuid() });
@@ -132,7 +160,7 @@ export const getDocument = createServerFn({ method: "POST" })
 const updateInput = z.object({
   id: z.string().uuid(),
   patch: z.object({
-    doc_type: z.enum(["lab_exam", "prescription", "report", "referral", "authorization", "other"]).optional(),
+    doc_type: z.enum(["lab_exam", "prescription", "report", "exam_request", "referral", "authorization", "other"]).optional(),
     doc_date: z.string().nullable().optional(),
     doctor_name: z.string().nullable().optional(),
     doctor_crm: z.string().nullable().optional(),

@@ -208,6 +208,7 @@ export type Database = {
         | "referral"
         | "authorization"
         | "other"
+        | "exam_request"
       item_kind: "lab" | "med"
       share_scope: "all" | "document"
     }
@@ -345,6 +346,7 @@ export const Constants = {
         "referral",
         "authorization",
         "other",
+        "exam_request",
       ],
       item_kind: ["lab", "med"],
       share_scope: ["all", "document"],

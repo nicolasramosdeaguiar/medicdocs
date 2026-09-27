@@ -1,12 +1,13 @@
 import type { LucideIcon } from "lucide-react";
-import { FlaskConical, Pill, FileText, Send, ShieldCheck, FileQuestion } from "lucide-react";
+import { FlaskConical, Pill, FileText, Send, ShieldCheck, FileQuestion, ClipboardList } from "lucide-react";
 
-export type DocType = "lab_exam" | "prescription" | "report" | "referral" | "authorization" | "other";
+export type DocType = "lab_exam" | "prescription" | "report" | "exam_request" | "referral" | "authorization" | "other";
 
 export const DOC_TYPES: { value: DocType; label: string }[] = [
   { value: "lab_exam", label: "Exame laboratorial" },
   { value: "prescription", label: "Receita" },
   { value: "report", label: "Laudo / Diagnóstico" },
+  { value: "exam_request", label: "Pedido de exame" },
   { value: "referral", label: "Encaminhamento" },
   { value: "authorization", label: "Autorização" },
   { value: "other", label: "Outro" },
@@ -16,6 +17,7 @@ export const DOC_META: Record<DocType, { label: string; icon: LucideIcon; color:
   lab_exam:      { label: "Exame",         icon: FlaskConical, color: "text-doc-lab",           tint: "bg-doc-lab/12" },
   prescription:  { label: "Receita",       icon: Pill,         color: "text-doc-prescription",  tint: "bg-doc-prescription/12" },
   report:        { label: "Laudo",         icon: FileText,     color: "text-doc-report",        tint: "bg-doc-report/12" },
+  exam_request:  { label: "Pedido de exame", icon: ClipboardList, color: "text-doc-exam-request", tint: "bg-doc-exam-request/12" },
   referral:      { label: "Encaminhamento",icon: Send,         color: "text-doc-referral",      tint: "bg-doc-referral/12" },
   authorization: { label: "Autorização",   icon: ShieldCheck,  color: "text-doc-authorization", tint: "bg-doc-authorization/12" },
   other:         { label: "Documento",     icon: FileQuestion, color: "text-doc-other",         tint: "bg-doc-other/12" },
