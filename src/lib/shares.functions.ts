@@ -6,6 +6,7 @@ const createInput = z.object({
   scope: z.enum(["all", "document"]),
   document_id: z.string().uuid().nullable().optional(),
   ttl_hours: z.number().int().min(0).max(24 * 30),
+  include_case_summary: z.boolean().default(false),
   // 0 => sem expiração (até revogar)
 });
 
@@ -25,6 +26,7 @@ export const createShare = createServerFn({ method: "POST" })
         scope: data.scope,
         document_id: doc,
         expires_at,
+        include_case_summary: data.include_case_summary,
       })
       .select("id, token, expires_at, scope, document_id")
       .single();
@@ -38,7 +40,7 @@ export const listShares = createServerFn({ method: "GET" })
     const { supabase, userId } = context;
     const { data, error } = await supabase
       .from("shares")
-      .select("id, token, scope, document_id, expires_at, revoked_at, created_at")
+        .select("id, token, scope, document_id, expires_at, revoked_at, created_at, include_case_summary")
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
@@ -67,7 +69,7 @@ export const viewShare = createServerFn({ method: "POST" })
 
     const { data: share } = await supabaseAdmin
       .from("shares")
-      .select("id, user_id, scope, document_id, expires_at, revoked_at")
+      .select("id, user_id, scope, document_id, expires_at, revoked_at, include_case_summary")
       .eq("token", data.token)
       .maybeSingle();
     if (!share) return { valid: false as const, reason: "not_found" as const };
@@ -106,11 +108,22 @@ export const viewShare = createServerFn({ method: "POST" })
       .eq("id", share.user_id)
       .maybeSingle();
 
+    const { caseContentSchema } = await import("./case-summary");
+    let caseSummary = null;
+    if (share.include_case_summary) {
+      const { data: row } = await supabaseAdmin.from("case_summaries")
+        .select("content, created_at").eq("user_id", share.user_id)
+        .order("created_at", { ascending: false }).limit(1).maybeSingle();
+      const parsed = row ? caseContentSchema.safeParse(row.content) : null;
+      if (row && parsed?.success) caseSummary = { content: parsed.data, created_at: row.created_at };
+    }
+
     return {
       valid: true as const,
       patient_name: profile?.full_name ?? null,
       scope: share.scope,
       expires_at: share.expires_at,
+      case_summary: caseSummary,
       documents: docList.map((d) => ({
         ...d,
         signed_url: urlById.get(d.id) ?? null,

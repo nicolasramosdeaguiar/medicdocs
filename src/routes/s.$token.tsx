@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { viewShare } from "@/lib/shares.functions";
 import { DOC_META, docTitle, formatDate, formatPersonName } from "@/lib/doc-meta";
 import { HeartPulse, AlertCircle } from "lucide-react";
+import { CaseSummaryView } from "@/components/case-summary-view";
 
 export const Route = createFileRoute("/s/$token")({
   ssr: false,
@@ -57,6 +58,8 @@ function SharePage() {
           </p>
         </div>
 
+        {data.case_summary && <div className="mb-8"><h2 className="text-xl mb-4">Resumo do caso</h2><CaseSummaryView content={data.case_summary.content} createdAt={data.case_summary.created_at} publicIds={data.documents.map((d) => d.id)} /></div>}
+
         {data.documents.length === 0 ? (
           <p className="text-muted-foreground">Nenhum documento disponível.</p>
         ) : (
@@ -65,7 +68,7 @@ function SharePage() {
               const meta = DOC_META[doc.doc_type as keyof typeof DOC_META];
               const Icon = meta.icon;
               return (
-                <li key={doc.id} className="rounded-2xl border border-border bg-card p-4">
+                <li key={doc.id} id={`document-${doc.id}`} className="rounded-2xl border border-border bg-card p-4 scroll-mt-20">
                   <div className="flex items-start gap-3">
                     <div className={`size-11 rounded-xl ${meta.tint} flex items-center justify-center`}>
                       <Icon className={`size-5 ${meta.color}`} />

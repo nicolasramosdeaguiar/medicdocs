@@ -17,6 +17,7 @@ import { Route as STokenRouteImport } from './routes/s.$token'
 import { Route as AuthenticatedUploadRouteImport } from './routes/_authenticated/upload'
 import { Route as AuthenticatedTimelineRouteImport } from './routes/_authenticated/timeline'
 import { Route as AuthenticatedSharesRouteImport } from './routes/_authenticated/shares'
+import { Route as AuthenticatedResumoRouteImport } from './routes/_authenticated/resumo'
 import { Route as AuthenticatedDocumentsIdRouteImport } from './routes/_authenticated/documents.$id'
 
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
@@ -58,6 +59,11 @@ const AuthenticatedSharesRoute = AuthenticatedSharesRouteImport.update({
   path: '/shares',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedResumoRoute = AuthenticatedResumoRouteImport.update({
+  id: '/resumo',
+  path: '/resumo',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedDocumentsIdRoute =
   AuthenticatedDocumentsIdRouteImport.update({
     id: '/documents/$id',
@@ -69,6 +75,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/resumo': typeof AuthenticatedResumoRoute
   '/shares': typeof AuthenticatedSharesRoute
   '/timeline': typeof AuthenticatedTimelineRoute
   '/upload': typeof AuthenticatedUploadRoute
@@ -79,6 +86,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/resumo': typeof AuthenticatedResumoRoute
   '/shares': typeof AuthenticatedSharesRoute
   '/timeline': typeof AuthenticatedTimelineRoute
   '/upload': typeof AuthenticatedUploadRoute
@@ -91,6 +99,7 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/_authenticated/resumo': typeof AuthenticatedResumoRoute
   '/_authenticated/shares': typeof AuthenticatedSharesRoute
   '/_authenticated/timeline': typeof AuthenticatedTimelineRoute
   '/_authenticated/upload': typeof AuthenticatedUploadRoute
@@ -103,6 +112,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/reset-password'
+    | '/resumo'
     | '/shares'
     | '/timeline'
     | '/upload'
@@ -113,6 +123,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/reset-password'
+    | '/resumo'
     | '/shares'
     | '/timeline'
     | '/upload'
@@ -124,6 +135,7 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/auth'
     | '/reset-password'
+    | '/_authenticated/resumo'
     | '/_authenticated/shares'
     | '/_authenticated/timeline'
     | '/_authenticated/upload'
@@ -197,6 +209,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSharesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/resumo': {
+      id: '/_authenticated/resumo'
+      path: '/resumo'
+      fullPath: '/resumo'
+      preLoaderRoute: typeof AuthenticatedResumoRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/documents/$id': {
       id: '/_authenticated/documents/$id'
       path: '/documents/$id'
@@ -208,6 +227,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedResumoRoute: typeof AuthenticatedResumoRoute
   AuthenticatedSharesRoute: typeof AuthenticatedSharesRoute
   AuthenticatedTimelineRoute: typeof AuthenticatedTimelineRoute
   AuthenticatedUploadRoute: typeof AuthenticatedUploadRoute
@@ -215,6 +235,7 @@ interface AuthenticatedRouteRouteChildren {
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedResumoRoute: AuthenticatedResumoRoute,
   AuthenticatedSharesRoute: AuthenticatedSharesRoute,
   AuthenticatedTimelineRoute: AuthenticatedTimelineRoute,
   AuthenticatedUploadRoute: AuthenticatedUploadRoute,

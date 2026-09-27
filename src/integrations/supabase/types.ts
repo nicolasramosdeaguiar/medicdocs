@@ -14,6 +14,66 @@ export type Database = {
   }
   public: {
     Tables: {
+      case_notes: {
+        Row: {
+          allergies: string | null
+          care_team_contact: string | null
+          current_cycle: string | null
+          next_procedure: string | null
+          other_notes: string | null
+          treatment_protocol: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          allergies?: string | null
+          care_team_contact?: string | null
+          current_cycle?: string | null
+          next_procedure?: string | null
+          other_notes?: string | null
+          treatment_protocol?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          allergies?: string | null
+          care_team_contact?: string | null
+          current_cycle?: string | null
+          next_procedure?: string | null
+          other_notes?: string | null
+          treatment_protocol?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      case_summaries: {
+        Row: {
+          content: Json
+          created_at: string
+          id: string
+          model: string
+          source_document_ids: string[]
+          user_id: string
+        }
+        Insert: {
+          content: Json
+          created_at?: string
+          id?: string
+          model: string
+          source_document_ids?: string[]
+          user_id: string
+        }
+        Update: {
+          content?: Json
+          created_at?: string
+          id?: string
+          model?: string
+          source_document_ids?: string[]
+          user_id?: string
+        }
+        Relationships: []
+      }
       document_items: {
         Row: {
           document_id: string
@@ -157,6 +217,7 @@ export type Database = {
           document_id: string | null
           expires_at: string | null
           id: string
+          include_case_summary: boolean
           revoked_at: string | null
           scope: Database["public"]["Enums"]["share_scope"]
           token: string
@@ -167,6 +228,7 @@ export type Database = {
           document_id?: string | null
           expires_at?: string | null
           id?: string
+          include_case_summary?: boolean
           revoked_at?: string | null
           scope: Database["public"]["Enums"]["share_scope"]
           token?: string
@@ -177,6 +239,7 @@ export type Database = {
           document_id?: string | null
           expires_at?: string | null
           id?: string
+          include_case_summary?: boolean
           revoked_at?: string | null
           scope?: Database["public"]["Enums"]["share_scope"]
           token?: string
