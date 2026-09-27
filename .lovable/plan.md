@@ -1,77 +1,55 @@
+# Meddocs — Resumo do caso
 
-# Meddocs — Plano do MVP
+Criar um resumo clínico rastreável, gerado por IA a partir dos documentos e das informações fornecidas pelo paciente ou família, voltado a médicos que ainda não conhecem o caso.
 
-App web responsivo (mobile-first) para o paciente centralizar exames, receitas, laudos e encaminhamentos, com extração automática por IA e compartilhamento via link público.
+## Experiência do paciente
 
-## Stack
-- TanStack Start + React + Tailwind (já configurado)
-- Lovable Cloud (Supabase gerenciado) para auth, banco e storage
-- Lovable AI Gateway (Gemini multimodal `google/gemini-3-flash-preview`) para OCR + extração estruturada direto de imagem/PDF
-- QR code via `qrcode` (npm)
+- Adicionar no topo do Início um bloco “Resumo do caso” com diagnóstico/situação atual, tratamento atual e data da geração.
+- Sem resumo, mostrar “Gerar resumo do caso”. Com documentos novos ou alterados, mostrar “Há documentos novos” e “Atualizar resumo”.
+- Trocar “Condições ativas” pelos diagnósticos do resumo, incluindo o selo “CID sugerido” quando o diagnóstico existir no texto, mas não houver CID informado.
+- Criar a página autenticada `/resumo`, com aviso fixo de geração automática, todas as seções clínicas, data de geração e referências clicáveis para os documentos originais.
+- Incluir “Editar informações da família” nessa página, com protocolo, ciclo atual, alergias, próximo procedimento, contato da equipe e outras observações.
+- Diferenciar visualmente toda informação familiar com “Informado pelo paciente/família”.
 
-## Telas / Rotas
+## Compartilhamento
 
-Públicas:
-- `/auth` — cadastro (nome, email, senha) e login em uma única tela com abas
-- `/s/$token` — visualização somente leitura de um compartilhamento
+- Adicionar ao fluxo de criação de qualquer link a escolha explícita “Incluir resumo do caso: sim/não”.
+- Persistir essa decisão no próprio link, para que ela não mude depois de criado.
+- Quando marcada, a página pública mostra o resumo antes dos documentos, com aviso, data de geração e referências para os documentos disponíveis naquele link.
+- Quando desmarcada, o link mantém a visualização atual, sem revelar o resumo.
+- Referências que não façam parte de um compartilhamento de documento único serão identificadas, mas não abrirão conteúdo não compartilhado.
 
-Autenticadas (sob `_authenticated`):
-- `/` — Timeline com busca no topo, lista ordenada desc, FAB "+ Adicionar documento", botão "Compartilhar tudo"
-- `/upload` — escolher câmera (`capture="environment"`) ou arquivo → tela "Processando…" → redireciona para confirmação
-- `/documents/$id` — detalhe: original (imagem/PDF) + dados extraídos editáveis; primeira abertura após upload age como tela de confirmação, destacando em amarelo campos de baixa confiança
-- `/shares` — links ativos com opção de revogar
+## Dados e segurança
 
-## Modelo de dados (Supabase, RLS por `auth.uid()`)
+- Criar `case_summaries` com conteúdo estruturado, documentos-fonte, modelo utilizado e data de geração.
+- Criar `case_notes` com uma linha por paciente para as informações da família.
+- Adicionar `include_case_summary` aos links de compartilhamento, com padrão `false`.
+- Conceder acesso explícito às tabelas e ativar proteção por dono: somente o paciente autenticado lê ou altera seus resumos e notas.
+- A página pública continuará resolvendo o token no servidor e devolverá o resumo apenas quando o link estiver ativo e autorizado a incluí-lo.
+- Guardar novas gerações como histórico; a interface usa sempre a mais recente.
 
-- `profiles(id uuid pk → auth.users, full_name, created_at)` — trigger auto-cria no signup
-- `documents(id, user_id, doc_type enum, doc_date date, doctor_name, doctor_crm, summary, cid, raw_text, confidence enum('high','review'), low_confidence_fields text[], file_path, mime_type, created_at)`
-  - `doc_type`: `lab_exam | prescription | report | referral | authorization | other`
-- `document_items(id, document_id, kind enum('lab','med'), name, value, unit, reference_range, dosage, route, notes, order_index)` — exames e medicamentos em uma tabela discriminada
-- `shares(id, user_id, token uuid unique, scope enum('all','document'), document_id nullable, expires_at nullable, revoked_at nullable, created_at)`
+## Geração por IA
 
-Storage bucket privado `medical-docs`, path `user_id/document_id.<ext>`. Downloads via signed URLs (server fn). Para `/s/$token`, o server valida token + expiração/revogação e devolve signed URLs temporárias.
+- Criar uma função autenticada que reúne todos os documentos do dono, seus itens e as notas da família em ordem cronológica.
+- Usar o modelo solicitado `google/gemini-2.5-pro`, cuja disponibilidade foi confirmada no catálogo do projeto, e salvar o identificador usado em cada geração.
+- Usar saída JSON validada com: manchete, diagnósticos, estadiamento, linha do tempo, tratamento atual, medicamentos, exames recentes, equipe e informações ausentes.
+- Aplicar as regras clínicas fornecidas: não deduzir diagnóstico, estadiamento, prognóstico, protocolo ou conduta; toda afirmação deve citar documentos ou `family`.
+- Validar no servidor todas as referências retornadas: aceitar apenas IDs pertencentes ao paciente e usar `family` somente para campos das notas.
+- Tratar erros do serviço de IA conforme o status: mensagens seguras, sem repetição automática de bloqueios, créditos ou recusas; tentativas limitadas apenas para falhas temporárias.
+- Detectar desatualização comparando a data do último resumo com documentos criados ou editados depois dele e com a última edição das notas familiares.
 
-Grants + RLS: donos leem/escrevem só seus registros. `shares` tem policy pública `TO anon` SELECT filtrada por `token` + não revogado + não expirado; leitura de documents/items via server fn público que resolve o token com service role (nunca expor `user_id` além do necessário).
+## Componentes e páginas
 
-## Server functions & rota pública
+- Criar tipos e componentes compartilhados para renderizar o resumo na área autenticada e no link público, evitando diferenças de conteúdo entre as duas versões.
+- Cada citação autenticada abre `/documents/$id`; no link público, a citação leva ao documento correspondente dentro da própria página quando ele estiver incluído.
+- Preservar `?categoria=` ao entrar em documentos pelo resumo e ao voltar para a lista.
+- Atualizar o diálogo de compartilhamento, a lista de links ativos e a página pública para indicar se o resumo está incluído.
+- Manter o visual atual do Meddocs, com seções clínicas legíveis, alertas discretos e boa leitura no celular.
 
-- `uploadAndExtract` (protected, POST): recebe arquivo, salva no storage, chama Gemini multimodal com prompt pedindo JSON estruturado (schema por tipo de doc) + campo `low_confidence_fields[]`, cria `documents` + `document_items`, retorna id. Erros do gateway (429/402) tratados com mensagem clara.
-- `updateDocument`, `deleteDocument`, `listDocuments(search?)`, `getDocument(id)`, `getSignedUrl(document_id)` — protected
-- `createShare({ scope, documentId?, ttl })`, `listShares`, `revokeShare(id)` — protected
-- `GET /s/$token` (rota pública TSS em `src/routes/s/$token.tsx`) — server-side resolve o compartilhamento e renderiza SSR
+## Validação
 
-## IA — prompt de extração
-
-Um único prompt server-side envia a imagem/PDF (via `image_url` ou `file` block com MIME real) pedindo:
-- `doc_type`, `doc_date`, `doctor_name`, `doctor_crm`, `summary`, `cid`
-- Se lab: array de `{ name, value, unit, reference_range }`
-- Se receita: array de `{ name, dosage, route }`
-- Array `low_confidence_fields` com paths dos campos incertos + `confidence: 'high' | 'review'`
-
-Usar `generateText` com `Output.object` (schema flat, sem `.min/.max`), com try/catch em `NoObjectGeneratedError` e fallback pra parse do `error.text`.
-
-## Busca
-
-`listDocuments(search)` faz `ilike` em `summary`, `doctor_name`, `raw_text` + join com `document_items.name` (medicamento/exame). Sem full-text por ora.
-
-## Visual
-
-- Paleta suave: off-white de fundo, verde-sálvia como primário, terracota suave como acento; sem azul clínico ou roxo genérico
-- Tipografia serif humanista para títulos (ex: Fraunces) + sans legível (Inter) para corpo, carregados via `<link>` no `__root.tsx`
-- Cards arredondados, espaçamento generoso, ícones distintos por `doc_type`, contraste AA+, alvos de toque ≥44px
-- Todas as cores como tokens semânticos em `src/styles.css` (HSL/oklch), nada hardcoded nos componentes
-- Metadata SEO por rota + og no `__root`
-
-## Fora do escopo (confirmado)
-Login de médicos, integração com laboratórios, convênio/farmácia, app nativo.
-
-## Ordem de implementação
-1. Ativar Lovable Cloud + migrations (profiles, documents, document_items, shares, bucket, RLS, grants, trigger de signup)
-2. Design tokens + shell autenticado + tela `/auth`
-3. Timeline vazia + FAB + busca
-4. Upload → server fn de extração com Gemini → detalhe/confirmação com destaque de baixa confiança
-5. Editar/salvar documento, deletar, reabrir original
-6. Compartilhamento: criar/listar/revogar links + rota pública `/s/$token` + QR code
-7. Polimento responsivo mobile, estados de erro (429/402), acessibilidade
-
-Ao terminar, sugiro publicar para você testar upload real no celular.
+- Aplicar e conferir a migração, incluindo permissões e proteção por usuário.
+- Verificar geração real com a IA, persistência do JSON e referências aos documentos.
+- Testar estados sem resumo, resumo atual, resumo desatualizado, notas familiares e erro da IA.
+- Testar links de tudo e de documento único, ambos com e sem resumo, além de links expirados/revogados.
+- Conferir navegação, acessibilidade e layout em desktop e celular, sem regressão nos filtros da timeline.
