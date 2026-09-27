@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { backfillTitles, listDocuments } from "@/lib/documents.functions";
 import { getDashboard } from "@/lib/dashboard.functions";
@@ -43,6 +43,7 @@ type MedRow = { name: string; dosage: string | null; route: string | null; docum
 
 function TimelinePage() {
   const [search, setSearch] = useState("");
+  const qc = useQueryClient();
   const list = useServerFn(listDocuments);
   const dash = useServerFn(getDashboard);
   const backfill = useServerFn(backfillTitles);

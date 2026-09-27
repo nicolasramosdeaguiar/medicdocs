@@ -232,7 +232,7 @@ export const backfillTitles = createServerFn({ method: "POST" })
       .select("id, raw_text, summary")
       .eq("user_id", userId)
       .is("title", null)
-      .limit(50);
+      .limit(200);
     if (error) throw new Error(error.message);
 
     let updated = 0;

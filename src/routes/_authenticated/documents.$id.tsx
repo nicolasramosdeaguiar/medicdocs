@@ -195,13 +195,26 @@ function DocumentDetail() {
         </div>
       )}
 
-      <div className="flex items-center gap-3 mb-6">
+      <div className="flex items-start gap-3 mb-6">
         <div className={`size-11 rounded-xl ${meta.tint} flex items-center justify-center`}>
           <Icon className={`size-5 ${meta.color}`} />
         </div>
-        <div>
+        <div className="min-w-0 flex-1 space-y-3">
           <p className="text-xs uppercase tracking-wide text-muted-foreground">{meta.label}</p>
-          <h1 className="text-xl leading-tight">{docTitle(form.title, form.summary)}</h1>
+          <Input
+            aria-label="Título do documento"
+            value={form.title}
+            maxLength={60}
+            onChange={(e) => setForm({ ...form, title: e.target.value })}
+            placeholder={docTitle(null, form.summary)}
+            className="h-auto border-0 bg-transparent p-0 text-xl font-serif leading-tight shadow-none focus-visible:ring-0"
+          />
+          <Textarea
+            aria-label="Resumo do documento"
+            value={form.summary}
+            onChange={(e) => setForm({ ...form, summary: e.target.value })}
+            className="min-h-24 resize-y"
+          />
         </div>
       </div>
 
@@ -238,23 +251,6 @@ function DocumentDetail() {
 
 
         <div className="space-y-4">
-          <Field label="Título" reviewing={low.has("title")}>
-            <Input
-              value={form.title}
-              maxLength={60}
-              onChange={(e) => setForm({ ...form, title: e.target.value })}
-              placeholder="Nome do documento ou exame"
-            />
-          </Field>
-
-          <Field label="Resumo" reviewing={low.has("summary")}>
-            <Textarea
-              value={form.summary}
-              onChange={(e) => setForm({ ...form, summary: e.target.value })}
-              className="min-h-28"
-            />
-          </Field>
-
           <Field label="Tipo de documento">
             <Select value={form.doc_type} onValueChange={(v) => setForm({ ...form, doc_type: v as typeof form.doc_type })}>
               <SelectTrigger><SelectValue /></SelectTrigger>
