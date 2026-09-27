@@ -64,26 +64,10 @@ const signUpSchema = signInSchema
   });
 
 const BENEFITS = [
-  {
-    icon: FolderOpen,
-    title: "Tudo num só lugar",
-    text: "Fotografe exames, laudos, receitas e encaminhamentos. O app lê o documento e organiza por tipo e data.",
-  },
-  {
-    icon: History,
-    title: "A história do tratamento em ordem",
-    text: "Uma linha do tempo com o que já foi feito, quando e por quem. Sem precisar lembrar de cabeça.",
-  },
-  {
-    icon: Share2,
-    title: "Pronto para a consulta",
-    text: "Compartilhe com o médico por link ou QR code. Você escolhe por quanto tempo e pode cancelar quando quiser.",
-  },
-  {
-    icon: ShieldCheck,
-    title: "Só você decide quem vê",
-    text: "Os documentos ficam na sua conta. Ninguém acessa sem um link que você mesmo criou.",
-  },
+  { icon: FolderOpen, title: "Tudo num só lugar", text: "Fotografe o documento, o app organiza por tipo e data." },
+  { icon: History, title: "Linha do tempo do tratamento", text: "O que já foi feito, quando e por quem." },
+  { icon: Share2, title: "Pronto para a consulta", text: "Compartilhe com o médico por link ou QR code." },
+  { icon: ShieldCheck, title: "Você decide quem vê", text: "Acesso só por links que você cria e pode cancelar." },
 ];
 
 function AuthPage() {
@@ -97,29 +81,45 @@ function AuthPage() {
 
   return (
     <div className="min-h-dvh flex flex-col">
-      <header className="px-6 py-6 lg:px-12">
+      <header className="px-5 py-4 lg:px-12 lg:py-6">
         <Link to="/" className="inline-flex items-center gap-2 text-primary">
           <HeartPulse className="size-6" aria-hidden />
           <span className="font-serif text-xl">Meddocs</span>
         </Link>
       </header>
 
-      <main className="flex-1 px-6 pb-16 lg:px-12">
-        <div className="mx-auto grid max-w-6xl gap-12 lg:grid-cols-[1.1fr_1fr] lg:gap-20 lg:items-start lg:pt-8">
-          {/* Apresentação: no celular aparece só o título aqui; os benefícios vão para baixo do formulário */}
-          <section className="lg:pt-4">
-            <h1 className="font-serif text-3xl leading-tight sm:text-4xl lg:text-5xl">
+      <main className="flex-1 px-5 pb-10 lg:flex lg:items-center lg:px-12 lg:pb-12">
+        <div className="mx-auto grid w-full max-w-6xl gap-8 lg:grid-cols-[1.15fr_1fr] lg:items-center lg:gap-16">
+          <section>
+            <h1 className="font-serif text-[1.65rem] leading-tight sm:text-3xl lg:text-4xl xl:text-[2.6rem] lg:max-w-xl">
               Vocês já têm preocupações demais. Organizar papel não precisa ser uma delas.
             </h1>
-            <p className="mt-4 max-w-prose text-base text-muted-foreground lg:text-lg">
-              Para pacientes e familiares que acompanham um tratamento: todos os exames, laudos e
-              receitas organizados, com a história completa pronta para mostrar a qualquer médico.
+            {/* Celular: uma linha só */}
+            <p className="mt-3 text-sm text-muted-foreground lg:hidden">
+              Exames, laudos e receitas organizados e prontos para mostrar ao médico.
             </p>
-            <BenefitList className="mt-10 hidden lg:block" />
+            {/* Computador: explicação completa + benefícios */}
+            <p className="mt-4 hidden max-w-xl text-lg text-muted-foreground lg:block">
+              Para pacientes e familiares que acompanham um tratamento: todos os documentos
+              organizados, com a história completa pronta para qualquer médico.
+            </p>
+            <ul className="mt-8 hidden grid-cols-2 gap-x-8 gap-y-6 lg:grid">
+              {BENEFITS.map(({ icon: Icon, title, text }) => (
+                <li key={title} className="flex gap-3">
+                  <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                    <Icon className="size-[18px]" aria-hidden />
+                  </span>
+                  <div>
+                    <p className="text-sm font-medium">{title}</p>
+                    <p className="mt-0.5 text-sm text-muted-foreground">{text}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
           </section>
 
-          <section className="w-full max-w-md lg:justify-self-end">
-            <div className="rounded-2xl border bg-card p-6 shadow-sm sm:p-8">
+          <section className="w-full sm:mx-auto sm:max-w-md lg:mx-0 lg:justify-self-end">
+            <div className="sm:rounded-2xl sm:border sm:bg-card sm:p-8 sm:shadow-sm">
               <Tabs defaultValue="signin">
                 <TabsList className="w-full grid grid-cols-2">
                   <TabsTrigger value="signin">Entrar</TabsTrigger>
@@ -131,28 +131,18 @@ function AuthPage() {
             </div>
           </section>
 
-          <BenefitList className="lg:hidden" />
+          {/* Celular: benefícios enxutos, abaixo do formulário */}
+          <ul className="space-y-3 border-t pt-6 lg:hidden">
+            {BENEFITS.map(({ icon: Icon, title }) => (
+              <li key={title} className="flex items-center gap-3 text-sm">
+                <Icon className="size-[18px] shrink-0 text-primary" aria-hidden />
+                <span>{title}</span>
+              </li>
+            ))}
+          </ul>
         </div>
       </main>
     </div>
-  );
-}
-
-function BenefitList({ className = "" }: { className?: string }) {
-  return (
-    <ul className={`space-y-6 ${className}`}>
-      {BENEFITS.map(({ icon: Icon, title, text }) => (
-        <li key={title} className="flex gap-4">
-          <span className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-            <Icon className="size-5" aria-hidden />
-          </span>
-          <div>
-            <p className="font-medium">{title}</p>
-            <p className="mt-1 text-sm text-muted-foreground max-w-prose">{text}</p>
-          </div>
-        </li>
-      ))}
-    </ul>
   );
 }
 
