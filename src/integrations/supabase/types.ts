@@ -83,6 +83,7 @@ export type Database = {
           requesting_doctor_crm: string | null
           requesting_doctor_name: string | null
           summary: string | null
+          title: string | null
           updated_at: string
           user_id: string
         }
@@ -104,6 +105,7 @@ export type Database = {
           requesting_doctor_crm?: string | null
           requesting_doctor_name?: string | null
           summary?: string | null
+          title?: string | null
           updated_at?: string
           user_id: string
         }
@@ -125,6 +127,7 @@ export type Database = {
           requesting_doctor_crm?: string | null
           requesting_doctor_name?: string | null
           summary?: string | null
+          title?: string | null
           updated_at?: string
           user_id?: string
         }
