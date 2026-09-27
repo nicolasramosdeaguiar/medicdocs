@@ -42,7 +42,7 @@ function TimelinePage() {
   const dash = useServerFn(getDashboard);
   const createShareFn = useServerFn(createShare);
 
-  const { data } = useQuery({
+  const { data: dashData } = useQuery({
     queryKey: ["dashboard"],
     queryFn: () => dash(),
   });
