@@ -54,6 +54,7 @@ function SharesPage() {
                   <div>
                     <p className="font-medium">
                       {s.scope === "all" ? "Todos os documentos" : "Documento específico"}
+                      {s.include_case_summary ? " · com resumo do caso" : " · sem resumo do caso"}
                     </p>
                     <p className="text-sm text-muted-foreground">
                       Criado em {formatDate(s.created_at)}

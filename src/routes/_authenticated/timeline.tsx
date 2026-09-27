@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { backfillTitles, getDocumentCategoryCounts, listDocuments } from "@/lib/documents.functions";
 import { getDashboard } from "@/lib/dashboard.functions";
+import { getCaseSummary, generateCaseSummary } from "@/lib/case-summary.functions";
 import { createShare } from "@/lib/shares.functions";
 import { AppShell } from "@/components/app-shell";
 import { DOC_META, docTitle, formatDate, formatPersonName } from "@/lib/doc-meta";
@@ -12,6 +13,7 @@ import { Plus, Search, Share2, AlertCircle, Pill } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { ShareDialog } from "@/components/share-dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import { z } from "zod";
 
 const categorySchema = z.enum(["exames", "receitas", "pedidos", "outros"]);
@@ -66,6 +68,12 @@ function TimelinePage() {
   const dash = useServerFn(getDashboard);
   const backfill = useServerFn(backfillTitles);
   const createShareFn = useServerFn(createShare);
+  const getCase = useServerFn(getCaseSummary);
+  const generateCase = useServerFn(generateCaseSummary);
+  const [includeSummary, setIncludeSummary] = useState(false);
+  const [shareChoiceOpen, setShareChoiceOpen] = useState(false);
+  const { data: caseData } = useQuery({ queryKey: ["case-summary"], queryFn: () => getCase() });
+  const regenerate = useMutation({ mutationFn: () => generateCase(), onSuccess: () => { toast.success("Resumo gerado"); void qc.invalidateQueries({ queryKey: ["case-summary"] }); }, onError: (e: Error) => toast.error(e.message) });
 
   const { data: dashData } = useQuery({
     queryKey: ["dashboard"],
@@ -99,26 +107,14 @@ function TimelinePage() {
 
   const [shareState, setShareState] = useState<{ open: boolean; token?: string; expiresAt?: string | null }>({ open: false });
   const shareAll = useMutation({
-    mutationFn: (ttl_hours: number) => createShareFn({ data: { scope: "all", ttl_hours } }),
-    onSuccess: (row) => setShareState({ open: true, token: row.token, expiresAt: row.expires_at }),
+    mutationFn: (ttl_hours: number) => createShareFn({ data: { scope: "all", ttl_hours, include_case_summary: includeSummary } }),
+    onSuccess: (row) => { setShareChoiceOpen(false); setShareState({ open: true, token: row.token, expiresAt: row.expires_at }); },
     onError: (e: Error) => toast.error(e.message),
   });
 
   const firstName = dashData?.fullName ? dashData.fullName.trim().split(/\s+/)[0] : null;
 
-  // Doenças ativas: CID mais recente por código, vinda dos laudos/exames
-  const diseases = useMemo(() => {
-    const map = new Map<string, { cid: string; summary: string | null; date: string; docId: string }>();
-    for (const doc of (dashData?.docs ?? []) as DocRow[]) {
-      const cid = doc.cid?.trim();
-      if (!cid) continue;
-      const key = cid.toUpperCase();
-      if (!map.has(key)) {
-        map.set(key, { cid: key, summary: doc.summary, date: doc.doc_date ?? doc.created_at, docId: doc.id });
-      }
-    }
-    return [...map.values()];
-  }, [dashData]);
+  const diseases = caseData?.summary?.content.diagnosis ?? [];
 
   // Medicamentos em uso: das receitas, um cartão por remédio (o mais recente prevalece)
   const meds = useMemo(() => {
@@ -137,31 +133,40 @@ function TimelinePage() {
     <AppShell>
       <div className="flex items-center justify-between gap-3 mb-5">
         <h1 className="text-2xl">{firstName ? `Olá, ${firstName}` : "Início"}</h1>
-        <Button variant="outline" size="sm" onClick={() => shareAll.mutate(24)} disabled={shareAll.isPending}>
+        <Button variant="outline" size="sm" onClick={() => setShareChoiceOpen(true)} disabled={shareAll.isPending}>
           <Share2 className="size-4" />
           <span className="hidden sm:inline">Compartilhar tudo</span>
         </Button>
       </div>
 
+      <section className="mb-6 border-y border-border py-5 space-y-2" aria-label="Resumo do caso">
+        <h2 className="text-xl">Resumo do caso</h2>
+        {caseData?.summary ? <>
+          <p className="font-medium">{caseData.summary.content.headline}</p>
+          {caseData.summary.content.current_treatment && <p className="text-sm text-muted-foreground">{caseData.summary.content.current_treatment.text}</p>}
+          <p className="text-xs text-muted-foreground">Gerado em {formatDate(caseData.summary.created_at)}</p>
+          {caseData.stale && <p className="text-sm text-warning-foreground">Há documentos novos</p>}
+          <div className="flex flex-wrap gap-2"><Button size="sm" asChild><Link to="/resumo">Ver resumo completo</Link></Button>{caseData.stale && <Button size="sm" variant="outline" disabled={regenerate.isPending} onClick={() => regenerate.mutate()}>{regenerate.isPending ? "Gerando…" : "Atualizar resumo"}</Button>}</div>
+        </> : <>{caseData?.hasDocuments ? <Button size="sm" disabled={regenerate.isPending} onClick={() => regenerate.mutate()}>{regenerate.isPending ? "Gerando…" : "Gerar resumo do caso"}</Button> : <p className="text-sm text-muted-foreground">Adicione documentos para criar um resumo.</p>}</>}
+      </section>
+
       {hasAnyDocs && (
         <section aria-label="Condições ativas" className="mb-4">
           <h2 className="text-sm font-medium text-muted-foreground mb-2">Condições ativas</h2>
           {diseases.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Nenhum diagnóstico (CID) identificado nos seus documentos ainda.</p>
+            <p className="text-sm text-muted-foreground">Nenhum diagnóstico identificado no resumo ainda.</p>
           ) : (
             <div className="flex flex-wrap gap-2">
-              {diseases.map((d) => (
+              {diseases.map((d, index) => (
                 <Link
-                  key={d.cid}
+                  key={`${d.text}-${index}`}
                   to="/documents/$id"
-                  params={{ id: d.docId }}
+                  params={{ id: d.sources.find((source) => source !== "family") ?? "" }}
                   search={categoria ? { categoria } : {}}
                   className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5 text-sm transition-colors hover:border-primary/40 hover:bg-secondary/40"
                 >
-                  <span className="font-medium text-foreground">{d.cid}</span>
-                  {d.summary && (
-                    <span className="text-muted-foreground line-clamp-1 max-w-44 sm:max-w-56">{d.summary}</span>
-                  )}
+                  <span className="font-medium text-foreground">{d.text}</span>
+                  <span className="text-muted-foreground">{d.cid ? `CID ${d.cid}` : d.cid_is_suggested ? "CID sugerido" : ""}</span>
                 </Link>
               ))}
             </div>
@@ -281,6 +286,7 @@ function TimelinePage() {
       )}
 
       <FloatingAddButton />
+      {shareChoiceOpen && <div role="dialog" aria-modal="true" aria-label="Compartilhar tudo" className="fixed inset-0 z-50 bg-foreground/30 flex items-center justify-center p-4"><div className="bg-card border border-border p-5 w-full max-w-sm space-y-4 shadow-lg"><h2 className="text-xl">Compartilhar tudo</h2><label className="flex gap-3 items-center text-sm"><Checkbox checked={includeSummary} onCheckedChange={(value) => setIncludeSummary(value === true)} />Incluir resumo do caso</label><div className="flex justify-end gap-2"><Button variant="outline" onClick={() => setShareChoiceOpen(false)}>Cancelar</Button><Button disabled={shareAll.isPending} onClick={() => shareAll.mutate(24)}>Gerar link</Button></div></div></div>}
       {shareState.open && shareState.token && (
         <ShareDialog
           open
