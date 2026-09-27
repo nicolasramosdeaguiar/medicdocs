@@ -25,7 +25,10 @@ const categories: { value: Category | "todos"; label: string }[] = [
 ];
 
 export const Route = createFileRoute("/_authenticated/timeline")({
-  validateSearch: (search) => ({ categoria: categorySchema.safeParse(search.categoria).data }),
+  validateSearch: (search): { categoria?: Category } => {
+    const parsed = categorySchema.safeParse(search.categoria);
+    return parsed.success ? { categoria: parsed.data } : {};
+  },
   head: () => ({
     meta: [
       { title: "Início — Meddocs" },
