@@ -59,12 +59,12 @@ function TimelinePage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const firstName = data?.fullName ? data.fullName.trim().split(/\s+/)[0] : null;
+  const firstName = dashData?.fullName ? dashData.fullName.trim().split(/\s+/)[0] : null;
 
   // Doenças ativas: CID mais recente por código, vinda dos laudos/exames
   const diseases = useMemo(() => {
     const map = new Map<string, { cid: string; summary: string | null; date: string; docId: string }>();
-    for (const doc of (data?.docs ?? []) as DocRow[]) {
+    for (const doc of (dashData?.docs ?? []) as DocRow[]) {
       const cid = doc.cid?.trim();
       if (!cid) continue;
       const key = cid.toUpperCase();
@@ -73,20 +73,20 @@ function TimelinePage() {
       }
     }
     return [...map.values()];
-  }, [data]);
+  }, [dashData]);
 
   // Medicamentos em uso: das receitas, um cartão por remédio (o mais recente prevalece)
   const meds = useMemo(() => {
     const map = new Map<string, MedRow>();
-    for (const med of (data?.meds ?? []) as MedRow[]) {
+    for (const med of (dashData?.meds ?? []) as MedRow[]) {
       const key = med.name.trim().toLowerCase();
       if (!key) continue;
       if (!map.has(key)) map.set(key, { ...med, name: med.name.trim() });
     }
     return [...map.values()];
-  }, [data]);
+  }, [dashData]);
 
-  const hasAnyDocs = (data?.docs?.length ?? 0) > 0;
+  const hasAnyDocs = (dashData?.docs?.length ?? 0) > 0;
 
   return (
     <AppShell>
