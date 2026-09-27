@@ -8,6 +8,13 @@
       "when": 1790510186932,
       "tag": "0000_add_documents_title",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790511387782,
+      "tag": "0001_add_exam_request_document_type",
+      "breakpoints": true
     }
   ]
 }
