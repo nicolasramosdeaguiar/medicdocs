@@ -26,6 +26,7 @@ export type ExtractionResult = {
   requesting_doctor_crm: string | null;
   reporting_doctor_name: string | null;
   reporting_doctor_crm: string | null;
+  title: string | null;
   summary: string;
   cid: string | null;
   raw_text: string;
@@ -47,6 +48,7 @@ const USER_INSTRUCTIONS = `Analise o documento anexado e devolva um JSON com est
   "requesting_doctor_crm": string | null,
   "reporting_doctor_name": string | null,  // médico que laudou / patologista responsável. null se não houver.
   "reporting_doctor_crm": string | null,
+  "title": string,
   "summary": string,
   "cid": string | null,
   "raw_text": string,
@@ -64,7 +66,8 @@ Regras:
 - Sempre inclua "items" (pode ser array vazio).
 - Não invente valores. Prefira null e marque em low_confidence_fields quando incerto.
 - Datas em ISO (YYYY-MM-DD). Se só houver mês/ano, use o primeiro dia do mês.
-- "summary" deve ser curto e útil para uma lista.
+- "title": nome do documento, exame ou procedimento, no máximo 50 caracteres. NÃO inclua nome do paciente, nome do médico, achados nem conclusões. Exemplos válidos: "Videoendoscopia digestiva alta", "Hemograma completo", "Exame anatomopatológico", "Pedido de endoscopia e ecoendoscopia", "Receita médica".
+- "summary": resumo do conteúdo — principais achados e conclusões, em 2 a 4 frases curtas, em português simples e acolhedor. Não repita o título.
 Responda apenas com o JSON, sem texto adicional.`;
 
 
@@ -159,7 +162,8 @@ function normalize(p: Partial<ExtractionResult>): ExtractionResult {
     requesting_doctor_crm: nullish(p.requesting_doctor_crm),
     reporting_doctor_name: nullish(p.reporting_doctor_name),
     reporting_doctor_crm: nullish(p.reporting_doctor_crm),
-    summary: (p.summary ?? "Documento").toString().slice(0, 200),
+    title: normalizeTitle(p.title),
+    summary: (p.summary ?? "Documento").toString().slice(0, 1200),
     cid: nullish(p.cid),
     raw_text: (p.raw_text ?? "").toString().slice(0, 20000),
     confidence,
@@ -179,4 +183,44 @@ function normalizeDate(v: unknown): string | null {
   const s = String(v);
   const m = s.match(/(\d{4})-(\d{2})-(\d{2})/);
   return m ? `${m[1]}-${m[2]}-${m[3]}` : null;
+}
+
+export function normalizeTitle(v: unknown): string | null {
+  if (v === null || v === undefined) return null;
+  const s = String(v).replace(/\s+/g, " ").trim();
+  if (!s) return null;
+  return s.length > 60 ? s.slice(0, 60).trimEnd() : s;
+}
+
+/** Gera apenas o título curto a partir do texto já extraído (backfill). */
+export async function titleFromText(rawText: string): Promise<string | null> {
+  const apiKey = process.env.LOVABLE_API_KEY;
+  if (!apiKey) throw new Error("LOVABLE_API_KEY ausente no servidor.");
+  const text = rawText.slice(0, 8000);
+  if (!text.trim()) return null;
+
+  const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Lovable-API-Key": apiKey },
+    body: JSON.stringify({
+      model: "google/gemini-2.5-flash",
+      response_format: { type: "json_object" },
+      messages: [
+        {
+          role: "system",
+          content:
+            'Você nomeia documentos médicos brasileiros. Responda apenas JSON: {"title": string}. O título é o nome do documento, exame ou procedimento, no máximo 50 caracteres, em português, sem nome do paciente, sem nome do médico, sem achados ou conclusões. Exemplos: "Videoendoscopia digestiva alta", "Hemograma completo", "Exame anatomopatológico", "Pedido de endoscopia e ecoendoscopia", "Receita médica".',
+        },
+        { role: "user", content: `Texto do documento:\n\n${text}` },
+      ],
+    }),
+  });
+  if (!res.ok) throw new Error(`Falha ao gerar título (${res.status}).`);
+  const json = (await res.json()) as { choices: Array<{ message: { content: string } }> };
+  try {
+    const parsed = JSON.parse(json.choices?.[0]?.message?.content ?? "{}") as { title?: unknown };
+    return normalizeTitle(parsed.title);
+  } catch {
+    return null;
+  }
 }
