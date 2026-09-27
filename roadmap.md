@@ -1,0 +1,4 @@
+- [ ] Criar resumo clínico com IA, referências verificadas e notas familiares privadas.
+- [ ] Exibir resumo no Início e em página completa.
+- [ ] Permitir incluir ou omitir resumo em cada link de compartilhamento.
+- [ ] Validar geração real, links e visualização móvel.
