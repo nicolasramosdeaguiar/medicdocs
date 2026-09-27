@@ -41,6 +41,7 @@ export const uploadAndExtract = createServerFn({ method: "POST" })
         requesting_doctor_crm: extracted.requesting_doctor_crm,
         reporting_doctor_name: extracted.reporting_doctor_name,
         reporting_doctor_crm: extracted.reporting_doctor_crm,
+        title: extracted.title,
         summary: extracted.summary,
         cid: extracted.cid,
         raw_text: extracted.raw_text,
@@ -82,7 +83,7 @@ export const listDocuments = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     let q = supabase
       .from("documents")
-      .select("id, doc_type, doc_date, doctor_name, summary, confidence, created_at")
+      .select("id, doc_type, doc_date, doctor_name, title, summary, confidence, created_at")
       .eq("user_id", userId)
       .order("doc_date", { ascending: false, nullsFirst: false })
       .order("created_at", { ascending: false })
@@ -92,7 +93,7 @@ export const listDocuments = createServerFn({ method: "POST" })
     if (s) {
       const term = `%${s.replace(/[%_]/g, "\\$&")}%`;
       q = q.or(
-        `summary.ilike.${term},doctor_name.ilike.${term},raw_text.ilike.${term}`,
+        `title.ilike.${term},summary.ilike.${term},doctor_name.ilike.${term},raw_text.ilike.${term}`,
       );
     }
     const { data: rows, error } = await q;
@@ -139,7 +140,8 @@ const updateInput = z.object({
     requesting_doctor_crm: z.string().nullable().optional(),
     reporting_doctor_name: z.string().nullable().optional(),
     reporting_doctor_crm: z.string().nullable().optional(),
-    summary: z.string().max(240).optional(),
+    title: z.string().max(60).nullable().optional(),
+    summary: z.string().max(2000).optional(),
     cid: z.string().nullable().optional(),
     confidence: z.enum(["high", "review"]).optional(),
     low_confidence_fields: z.array(z.string()).optional(),
@@ -213,6 +215,43 @@ export const deleteDocument = createServerFn({ method: "POST" })
     const del = await supabase.from("documents").delete().eq("id", data.id).eq("user_id", userId);
     if (del.error) throw new Error(del.error.message);
     return { ok: true };
+  });
+
+/**
+ * Gera o título dos documentos antigos que ainda não têm um, a partir do
+ * texto já extraído. Roda uma única vez por documento.
+ */
+export const backfillTitles = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    const { titleFromText, normalizeTitle } = await import("@/lib/ai-extract.server");
+
+    const { data: rows, error } = await supabase
+      .from("documents")
+      .select("id, raw_text, summary")
+      .eq("user_id", userId)
+      .is("title", null)
+      .limit(50);
+    if (error) throw new Error(error.message);
+
+    let updated = 0;
+    for (const row of rows ?? []) {
+      let title: string | null = null;
+      try {
+        title = row.raw_text ? await titleFromText(row.raw_text) : null;
+      } catch {
+        title = null;
+      }
+      if (!title && row.summary) {
+        const cut = row.summary.split(/[:,]/)[0]?.trim();
+        title = normalizeTitle(cut ? cut.slice(0, 50) : null);
+      }
+      if (!title) continue;
+      const upd = await supabase.from("documents").update({ title }).eq("id", row.id).eq("user_id", userId);
+      if (!upd.error) updated += 1;
+    }
+    return { updated, pending: (rows?.length ?? 0) - updated };
   });
 
 function extFromMime(mime: string, filename: string): string {
