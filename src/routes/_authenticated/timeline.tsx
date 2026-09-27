@@ -152,6 +152,7 @@ function TimelinePage() {
                   key={d.cid}
                   to="/documents/$id"
                   params={{ id: d.docId }}
+                  search={categoria ? { categoria } : {}}
                   className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5 text-sm transition-colors hover:border-primary/40 hover:bg-secondary/40"
                 >
                   <span className="font-medium text-foreground">{d.cid}</span>
@@ -174,6 +175,7 @@ function TimelinePage() {
                 <Link
                   to="/documents/$id"
                   params={{ id: med.document_id }}
+                  search={categoria ? { categoria } : {}}
                   className="flex gap-3 items-center rounded-2xl border border-border bg-card p-3 transition-colors hover:border-primary/40 hover:bg-secondary/40"
                 >
                   <div className="shrink-0 size-9 rounded-lg bg-doc-prescription/12 flex items-center justify-center">

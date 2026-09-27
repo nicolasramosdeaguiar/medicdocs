@@ -139,8 +139,9 @@ function DocumentDetail() {
     onSuccess: () => {
       toast.success("Documento salvo");
       qc.invalidateQueries({ queryKey: ["documents"] });
+      qc.invalidateQueries({ queryKey: ["document-category-counts"] });
       qc.invalidateQueries({ queryKey: ["document", id] });
-       navigate({ to: "/timeline", search: search.categoria ? { categoria: search.categoria } : {} });
+      navigate({ to: "/timeline", search: search.categoria ? { categoria: search.categoria } : {} });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -150,7 +151,8 @@ function DocumentDetail() {
     onSuccess: () => {
       toast.success("Documento excluído");
       qc.invalidateQueries({ queryKey: ["documents"] });
-       navigate({ to: "/timeline", search: search.categoria ? { categoria: search.categoria } : {} });
+      qc.invalidateQueries({ queryKey: ["document-category-counts"] });
+      navigate({ to: "/timeline", search: search.categoria ? { categoria: search.categoria } : {} });
     },
   });
 
