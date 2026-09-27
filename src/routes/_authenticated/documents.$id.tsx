@@ -16,7 +16,7 @@ import { AlertCircle, ArrowLeft, Download, ExternalLink, Plus, Share2, Trash2, X
 import { z } from "zod";
 import { ShareDialog } from "@/components/share-dialog";
 
-const searchSchema = z.object({ review: z.number().optional() });
+const searchSchema = z.object({ review: z.number().optional(), categoria: z.enum(["exames", "receitas", "pedidos", "outros"]).optional() });
 
 export const Route = createFileRoute("/_authenticated/documents/$id")({
   validateSearch: (s) => searchSchema.parse(s),
@@ -140,7 +140,7 @@ function DocumentDetail() {
       toast.success("Documento salvo");
       qc.invalidateQueries({ queryKey: ["documents"] });
       qc.invalidateQueries({ queryKey: ["document", id] });
-      navigate({ to: "/timeline" });
+       navigate({ to: "/timeline", search: search.categoria ? { categoria: search.categoria } : {} });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -150,7 +150,7 @@ function DocumentDetail() {
     onSuccess: () => {
       toast.success("Documento excluído");
       qc.invalidateQueries({ queryKey: ["documents"] });
-      navigate({ to: "/timeline" });
+       navigate({ to: "/timeline", search: search.categoria ? { categoria: search.categoria } : {} });
     },
   });
 
@@ -165,14 +165,14 @@ function DocumentDetail() {
   }
 
   const kind: "lab" | "med" =
-    form.doc_type === "lab_exam" ? "lab" : form.doc_type === "prescription" ? "med" : items[0]?.kind ?? "lab";
+    form.doc_type === "lab_exam" || form.doc_type === "exam_request" ? "lab" : form.doc_type === "prescription" ? "med" : items[0]?.kind ?? "lab";
   const meta = DOC_META[form.doc_type];
   const Icon = meta.icon;
 
   return (
     <AppShell>
       <div className="flex items-center justify-between mb-4">
-        <Button variant="ghost" size="sm" onClick={() => navigate({ to: "/timeline" })}>
+        <Button variant="ghost" size="sm" onClick={() => navigate({ to: "/timeline", search: search.categoria ? { categoria: search.categoria } : {} })}>
           <ArrowLeft className="size-4" /> Timeline
         </Button>
         <div className="flex gap-1">

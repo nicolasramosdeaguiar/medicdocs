@@ -18,7 +18,7 @@ export type ExtractedItem = {
 };
 
 export type ExtractionResult = {
-  doc_type: "lab_exam" | "prescription" | "report" | "referral" | "authorization" | "other";
+  doc_type: "lab_exam" | "prescription" | "report" | "exam_request" | "referral" | "authorization" | "other";
   doc_date: string | null;
   doctor_name: string | null;
   doctor_crm: string | null;
@@ -36,11 +36,11 @@ export type ExtractionResult = {
 };
 
 
-const SYSTEM_PROMPT = `Você é um assistente que extrai informações estruturadas de documentos médicos brasileiros (exames laboratoriais, receitas, laudos, encaminhamentos e autorizações). Responda SEMPRE em JSON válido, seguindo o schema pedido. Escreva em português. Se um campo estiver ilegível, incerto ou ausente, retorne null e adicione o caminho do campo em "low_confidence_fields". Se pelo menos um campo importante estiver incerto, defina "confidence" como "review"; caso contrário, "high".`;
+const SYSTEM_PROMPT = `Você é um assistente que extrai informações estruturadas de documentos médicos brasileiros (resultados de exames, pedidos de exames e procedimentos, receitas, laudos, encaminhamentos e autorizações). Responda SEMPRE em JSON válido, seguindo o schema pedido. Escreva em português. Se um campo estiver ilegível, incerto ou ausente, retorne null e adicione o caminho do campo em "low_confidence_fields". Se pelo menos um campo importante estiver incerto, defina "confidence" como "review"; caso contrário, "high".`;
 
 const USER_INSTRUCTIONS = `Analise o documento anexado e devolva um JSON com este formato exato:
 {
-  "doc_type": "lab_exam" | "prescription" | "report" | "referral" | "authorization" | "other",
+  "doc_type": "lab_exam" | "prescription" | "report" | "exam_request" | "referral" | "authorization" | "other",
   "doc_date": "YYYY-MM-DD" | null,
   "doctor_name": string | null,           // médico principal / assinante do documento
   "doctor_crm": string | null,
@@ -61,8 +61,10 @@ const USER_INSTRUCTIONS = `Analise o documento anexado e devolva um JSON com est
   ]
 }
 Regras:
+- Use "exam_request" para pedidos/solicitações de exames ou procedimentos (inclusive biópsias, imagens e endoscopias), mesmo que o título mencione o exame. Use "lab_exam" e "report" somente quando o documento contiver RESULTADOS, achados ou laudo; uma solicitação sem resultado nunca é exame ou laudo. "referral" é encaminhamento para consulta/especialista, não pedido de exame. "authorization" é autorização, não o pedido em si.
+- Em "exam_request", inclua os exames/procedimentos solicitados em "items" com kind "lab" e valor null; não invente resultados.
 - Para exames laboratoriais, biópsias e laudos: procure explicitamente o "médico solicitante" (quem pediu) e o "médico responsável pelo laudo" / patologista (quem assinou o resultado). Use null quando o campo não aparecer no documento.
-- Para receitas e encaminhamentos, use apenas doctor_name/doctor_crm (médico assinante) e deixe os campos requesting_/reporting_ como null.
+- Para pedidos de exame, receitas e encaminhamentos, use apenas doctor_name/doctor_crm (médico assinante/solicitante) e deixe os campos requesting_/reporting_ como null.
 - Sempre inclua "items" (pode ser array vazio).
 - Não invente valores. Prefira null e marque em low_confidence_fields quando incerto.
 - Datas em ISO (YYYY-MM-DD). Se só houver mês/ano, use o primeiro dia do mês.
@@ -130,7 +132,7 @@ export async function extractFromDocument(
 }
 
 function normalize(p: Partial<ExtractionResult>): ExtractionResult {
-  const doc_type = (["lab_exam", "prescription", "report", "referral", "authorization", "other"] as const).includes(
+  const doc_type = (["lab_exam", "prescription", "report", "exam_request", "referral", "authorization", "other"] as const).includes(
     p.doc_type as never,
   )
     ? (p.doc_type as ExtractionResult["doc_type"])
