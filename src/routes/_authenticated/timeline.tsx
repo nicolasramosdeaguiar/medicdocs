@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { backfillTitles, listDocuments } from "@/lib/documents.functions";
+import { backfillTitles, getDocumentCategoryCounts, listDocuments } from "@/lib/documents.functions";
 import { getDashboard } from "@/lib/dashboard.functions";
 import { createShare } from "@/lib/shares.functions";
 import { AppShell } from "@/components/app-shell";
@@ -12,8 +12,20 @@ import { Plus, Search, Share2, AlertCircle, Pill } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { ShareDialog } from "@/components/share-dialog";
+import { z } from "zod";
+
+const categorySchema = z.enum(["exames", "receitas", "pedidos", "outros"]);
+type Category = z.infer<typeof categorySchema>;
+const categories: { value: Category | "todos"; label: string }[] = [
+  { value: "todos", label: "Todos" },
+  { value: "exames", label: "Exames e laudos" },
+  { value: "receitas", label: "Receitas" },
+  { value: "pedidos", label: "Pedidos e encaminhamentos" },
+  { value: "outros", label: "Outros" },
+];
 
 export const Route = createFileRoute("/_authenticated/timeline")({
+  validateSearch: (search) => ({ categoria: categorySchema.safeParse(search.categoria).data }),
   head: () => ({
     meta: [
       { title: "Início — Meddocs" },
@@ -42,9 +54,12 @@ type DocRow = {
 type MedRow = { name: string; dosage: string | null; route: string | null; document_id: string };
 
 function TimelinePage() {
+  const { categoria } = Route.useSearch();
+  const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const qc = useQueryClient();
   const list = useServerFn(listDocuments);
+  const getCounts = useServerFn(getDocumentCategoryCounts);
   const dash = useServerFn(getDashboard);
   const backfill = useServerFn(backfillTitles);
   const createShareFn = useServerFn(createShare);
@@ -55,9 +70,20 @@ function TimelinePage() {
   });
 
   const { data, isLoading } = useQuery({
-    queryKey: ["documents", search],
-    queryFn: () => list({ data: { search: search || undefined } }),
+    queryKey: ["documents", search, categoria],
+    queryFn: () => list({ data: { search: search || undefined, category: categoria } }),
   });
+
+  const { data: counts } = useQuery({
+    queryKey: ["document-category-counts"],
+    queryFn: () => getCounts(),
+  });
+
+  useEffect(() => {
+    if (categoria && counts && counts[categoria] === 0) {
+      void navigate({ to: "/timeline", search: {}, replace: true });
+    }
+  }, [categoria, counts, navigate]);
 
   const backfillStarted = useRef(false);
   useEffect(() => {
@@ -179,6 +205,30 @@ function TimelinePage() {
         </div>
       </div>
 
+      <nav aria-label="Filtrar documentos por categoria" className="mb-4 -mx-4 px-4 overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="flex w-max min-w-full gap-2 pb-1">
+          {categories.filter((item) => item.value === "todos" || !counts || counts[item.value] > 0).map((item) => {
+            const active = (categoria ?? "todos") === item.value;
+            return (
+              <Button
+                key={item.value}
+                type="button"
+                variant={active ? "default" : "outline"}
+                size="sm"
+                aria-pressed={active}
+                onClick={() => void navigate({ to: "/timeline", search: item.value === "todos" ? {} : { categoria: item.value } })}
+                className="shrink-0 rounded-full gap-2"
+              >
+                {item.label}
+                <span className={active ? "text-primary-foreground/80 tabular-nums" : "text-muted-foreground tabular-nums"}>
+                  {counts?.[item.value] ?? "–"}
+                </span>
+              </Button>
+            );
+          })}
+        </div>
+      </nav>
+
       {isLoading ? (
         <div className="space-y-3">
           {[0, 1, 2].map((i) => (
@@ -186,7 +236,7 @@ function TimelinePage() {
           ))}
         </div>
       ) : !data || data.length === 0 ? (
-        <EmptyState hasSearch={!!search} />
+        <EmptyState hasSearch={!!search} hasCategory={!!categoria} />
       ) : (
         <ul className="space-y-3">
           {data.map((doc) => {
@@ -197,6 +247,7 @@ function TimelinePage() {
                 <Link
                   to="/documents/$id"
                   params={{ id: doc.id }}
+                  search={categoria ? { categoria } : {}}
                   className="flex gap-3 items-start rounded-2xl border border-border bg-card p-4 transition-colors hover:border-primary/40 hover:bg-secondary/40"
                 >
                   <div className={`shrink-0 size-11 rounded-xl ${meta.tint} flex items-center justify-center`}>
@@ -237,11 +288,11 @@ function TimelinePage() {
   );
 }
 
-function EmptyState({ hasSearch }: { hasSearch: boolean }) {
-  if (hasSearch) {
+function EmptyState({ hasSearch, hasCategory }: { hasSearch: boolean; hasCategory: boolean }) {
+  if (hasSearch || hasCategory) {
     return (
       <div className="rounded-2xl border border-dashed border-border p-8 text-center text-muted-foreground">
-        Nenhum documento encontrado para essa busca.
+        Nenhum documento encontrado {hasSearch ? "para essa busca" : "nesta categoria"}.
       </div>
     );
   }
