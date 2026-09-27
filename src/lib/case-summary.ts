@@ -8,10 +8,32 @@ const sources = z.preprocess(
 );
 const optText = z.preprocess((v) => (typeof v === "string" && v.trim() ? v : null), z.string().nullable());
 const reqText = z.preprocess((v) => (typeof v === "string" ? v : ""), z.string());
+// Lista: aceita lista, item único (vira lista de 1) ou vazio
 const list = <T extends z.ZodTypeAny>(item: T) =>
-  z.preprocess((v) => (Array.isArray(v) ? v.filter((x) => x && typeof x === "object") : []), z.array(item));
+  z.preprocess(
+    (v) =>
+      Array.isArray(v)
+        ? v.filter((x) => x && typeof x === "object")
+        : v && typeof v === "object"
+          ? [v]
+          : [],
+    z.array(item),
+  );
 const sourced = z.object({ text: reqText, sources });
-const maybeSourced = z.preprocess((v) => (v && typeof v === "object" ? v : null), sourced.nullable());
+// Item único (estadiamento, tratamento atual): aceita objeto, lista de objetos
+// (junta os textos e as fontes) ou texto solto sem fonte (descartado depois)
+const maybeSourced = z.preprocess((v) => {
+  if (Array.isArray(v)) {
+    const items = v.filter((x) => x && typeof x === "object") as Array<{ text?: unknown; sources?: unknown }>;
+    if (!items.length) return null;
+    const texts = items.map((x) => (typeof x.text === "string" ? x.text.trim() : "")).filter(Boolean);
+    const srcs = items.flatMap((x) =>
+      typeof x.sources === "string" ? [x.sources] : Array.isArray(x.sources) ? x.sources : [],
+    );
+    return { text: texts.join("; "), sources: srcs };
+  }
+  return v && typeof v === "object" ? v : null;
+}, sourced.nullable());
 export const caseContentSchema = z.object({
   headline: reqText,
   headline_sources: sources,
