@@ -15,6 +15,8 @@ export const Route = createFileRoute("/reset-password")({
       { name: "description", content: "Escolha uma nova senha para acessar seu histórico de saúde no Meddocs." },
       { property: "og:title", content: "Definir nova senha — Meddocs" },
       { property: "og:description", content: "Escolha uma nova senha para sua conta Meddocs." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: ResetPasswordPage,

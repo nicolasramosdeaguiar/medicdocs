@@ -9,7 +9,14 @@ import { Copy, Ban } from "lucide-react";
 import { formatDate } from "@/lib/doc-meta";
 
 export const Route = createFileRoute("/_authenticated/shares")({
-  head: () => ({ meta: [{ title: "Links ativos — Meddocs" }] }),
+  head: () => ({ meta: [
+    { title: "Links ativos — Meddocs" },
+    { name: "description", content: "Gerencie os links temporários dos seus documentos de saúde." },
+    { property: "og:title", content: "Links ativos — Meddocs" },
+    { property: "og:description", content: "Gerencie os links temporários dos seus documentos de saúde." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary" },
+  ] }),
   component: SharesPage,
 });
 
