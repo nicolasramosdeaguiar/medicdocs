@@ -15,6 +15,13 @@
       "when": 1790511387782,
       "tag": "0001_add_exam_request_document_type",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790513867151,
+      "tag": "0002_case_summary_and_share_choice",
+      "breakpoints": true
     }
   ]
 }
